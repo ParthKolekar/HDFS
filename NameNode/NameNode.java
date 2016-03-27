@@ -1,14 +1,20 @@
+import java.net.MalformedURLException;
+import java.rmi.AlreadyBoundException;
+import java.rmi.Naming;
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 
 
-public class NameNode implements INameNode {
-	
-	public NameNode() {
-		
+public class NameNode extends UnicastRemoteObject implements INameNode {
+
+	public NameNode() throws RemoteException {
+		super();
 	}
 
-	public static void main(String[] args) {
-
+	public static void main(String[] args) throws RemoteException, MalformedURLException, AlreadyBoundException {
+		NameNode nameNode = new NameNode();
+		Naming.bind("NameNode", nameNode);
+		System.out.println("NameNode bound");
 	}
 
 	@Override
