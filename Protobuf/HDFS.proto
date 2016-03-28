@@ -1,3 +1,6 @@
+option java_package = 'Protobuf';
+option java_outer_classname = "HDFSProtobuf";
+
 message OpenFileRequest {
   optional string fileName = 1; // fileName
   optional bool forRead = 2; // true, for read; false for write

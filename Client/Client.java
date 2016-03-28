@@ -1,3 +1,5 @@
+package Client;
+
 import java.util.Scanner;
 
 
@@ -6,14 +8,14 @@ public class Client {
 	private static Boolean isSingleCommand = false;
 	
 	public Client() {
-
+		super();
 	}
 	
 	private static void parseCommand(String command) {
 //		System.err.println("Executing Command : " + command);
 		String[] argumentList = command.split(" ");
 		
-		String type = argumentList[0];
+		String type = argumentList[0]; 
 		
 		switch (type) {
 			case "list":
@@ -21,6 +23,9 @@ public class Client {
 				break;
 			case "add":
 				System.err.println("add");
+				break;
+			case "exit":
+				System.out.println("Exiting...");
 				break;
 			default:
 				System.err.println("Undefined type of command " + type);

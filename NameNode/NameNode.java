@@ -1,3 +1,5 @@
+package NameNode;
+
 import java.net.MalformedURLException;
 import java.rmi.AlreadyBoundException;
 import java.rmi.Naming;
@@ -6,6 +8,8 @@ import java.rmi.server.UnicastRemoteObject;
 
 
 public class NameNode extends UnicastRemoteObject implements INameNode {
+
+	private static final long serialVersionUID = 1L;
 
 	public NameNode() throws RemoteException {
 		super();
