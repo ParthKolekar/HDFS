@@ -17,6 +17,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 public class NameNode extends UnicastRemoteObject implements INameNode {
 
 	private static final long serialVersionUID = 1L;
+	private static final Integer heartBeatTimeout = 1000;
 	private static Integer heartBeatID = 0;
 	private static Integer totalNodes = -1;
 
@@ -45,8 +46,10 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 					
 					IDataNode dataNode = null;
 					
+					Integer index = (heartBeatID % totalNodes) + 1;
+					
 					try {
-						dataNode = (IDataNode) Naming.lookup("DataNode1");
+						dataNode = (IDataNode) Naming.lookup("DataNode" + index.toString());
 					} catch (MalformedURLException | RemoteException | NotBoundException e) {
 						e.printStackTrace();
 					}
@@ -74,7 +77,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 					}
 					
 					try {
-						Thread.sleep(1000);
+						Thread.sleep(heartBeatTimeout);
 					} catch (InterruptedException e) {
 						// nope
 					}
