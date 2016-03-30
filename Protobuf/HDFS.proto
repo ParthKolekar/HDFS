@@ -1,5 +1,6 @@
 option java_package = 'Protobuf';
 option java_outer_classname = "HDFSProtobuf";
+	
 
 message OpenFileRequest {
   optional string fileName = 1; // fileName
@@ -31,7 +32,7 @@ message WriteBlockResponse {
 }
 
 message DataNodeLocation {
-  optional string ip = 1	;
+  optional string IP = 1;
   optional int32 port = 2;
 }
 
