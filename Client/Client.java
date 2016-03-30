@@ -11,6 +11,21 @@ public class Client {
 		super();
 	}
 	
+	private  static void put(String fileName) {
+		
+		
+	}
+	
+	private  static void get(String fileName) {
+		
+		
+	}
+	
+	private  static void list() {
+		
+		
+	}
+	
 	private static void parseCommand(String command) {
 //		System.err.println("Executing Command : " + command);
 		String[] argumentList = command.split(" ");
@@ -19,10 +34,29 @@ public class Client {
 		
 		switch (type) {
 			case "list":
-				System.err.println("list");
+				try {
+					list();
+					
+				} catch (Exception e) {
+					System.err.println("list");
+				}
+				
 				break;
-			case "add":
-				System.err.println("add");
+			case "get":
+				try {
+					get(argumentList[1]);
+					
+				} catch (Exception e) {
+					System.err.println("get");
+					}
+				break;
+			case "put":
+				try {
+					put(argumentList[1]);					
+				}
+				catch(IndexOutOfBoundsException e) {
+					System.err.println("Wrong number of arguments specified\n");					
+				}
 				break;
 			case "exit":
 				System.out.println("Exiting...");

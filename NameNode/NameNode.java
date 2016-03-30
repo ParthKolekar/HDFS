@@ -6,9 +6,11 @@ import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 
+import Protobuf.HDFSProtobuf.OpenFileRequest;
 import Protobuf.HDFSProtobuf.BlockReportRequest;
 import Protobuf.HDFSProtobuf.HeartBeatRequest;
 import Protobuf.HDFSProtobuf.HeartBeatResponse;
+import Protobuf.HDFSProtobuf.OpenFileResponse;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -29,7 +31,23 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 	@Override
 	public byte[] openFile(byte[] serializedOpenFileRequest) throws RemoteException {
 		// TODO Auto-generated method stub
-		return null;
+		byte[] serializedOpenFileResponse = null;
+		try {
+			OpenFileRequest openFileRequest = OpenFileRequest.parseFrom(serializedOpenFileRequest);
+			String fileName = openFileRequest.getFileName();
+			Boolean forRead  = openFileRequest.getForRead();
+			if(forRead) {
+				
+			}
+			else {
+				
+			}
+				
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+		
+		return serializedOpenFileResponse;
 	}
 
 	@Override
