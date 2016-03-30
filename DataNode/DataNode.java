@@ -27,13 +27,13 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 
 	private static final long serialVersionUID = 1L;
 	private static final Integer heartBeatTimeout = 1000;
-	private static Integer serverID = -1;
 	private static Integer heartBeatID = 0;
 	
 	
 	public DataNode() throws RemoteException {
 		super();
 	}
+	
 	public void check() throws RemoteException, InvalidProtocolBufferException
 	{
 	    ReadBlockRequest.Builder readBlockRequest = ReadBlockRequest.newBuilder();
@@ -48,62 +48,67 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 	}
 
 	public static void main(String[] args) throws RemoteException, MalformedURLException, AlreadyBoundException {
-		if (args.length != 1) {
-			System.err.println("USAGE: java DataNode.DataNode <nodeID>");
-			System.exit(-1);
-		}
 		
-		serverID = Integer.parseInt(args[0]);
+		new Thread(new Runnable() {
+			
+			@Override
+			public void run() {
+				while (true) {
+					heartBeatID++;
+					HeartBeatRequest.Builder heartBeatRequest = HeartBeatRequest.newBuilder();
+					heartBeatRequest.setId(heartBeatID);
+					byte[] serializedHeartBeatRequest = heartBeatRequest.build().toByteArray();
+					
+					INameNode nameNode = null;
+					
+					try {
+						nameNode = (INameNode) Naming.lookup("NameNode");
+					} catch (MalformedURLException | RemoteException | NotBoundException e) {
+						e.printStackTrace();
+					}
+					
+					byte[] serializedHeartBeatResponse = null;
+					
+					try {
+						serializedHeartBeatResponse = nameNode.heartBeat(serializedHeartBeatRequest);
+					} catch (RemoteException | InvalidProtocolBufferException e) {
+						e.printStackTrace();
+					}
+					
+					HeartBeatResponse heartBeatResponse = null;
+					
+					try {
+						heartBeatResponse = HeartBeatResponse.parseFrom(serializedHeartBeatResponse);
+					} catch (InvalidProtocolBufferException e) {
+						e.printStackTrace();
+					}
+					
+					Integer heartBeatStatus = heartBeatResponse.getStatus();
+					
+					if (heartBeatStatus.equals(heartBeatID)) {
+						System.out.println(" Heart Beating... ");
+					}
+					
+					try {
+						Thread.sleep(heartBeatTimeout);
+					} catch (InterruptedException e) {
+						// nope
+					}
+				}
+			}
+		}).start();
 		
-//		new Thread(new Runnable() {
-//			
-//			@Override
-//			public void run() {
-//				while (true) {
-//					heartBeatID++;
-//					HeartBeatRequest.Builder heartBeatRequest = HeartBeatRequest.newBuilder();
-//					heartBeatRequest.setId(heartBeatID);
-//					byte[] serializedHeartBeatRequest = heartBeatRequest.build().toByteArray();
-//					
-//					INameNode nameNode = null;
-//					
-//					try {
-//						nameNode = (INameNode) Naming.lookup("NameNode");
-//					} catch (MalformedURLException | RemoteException | NotBoundException e) {
-//						e.printStackTrace();
-//					}
-//					
-//					byte[] serializedHeartBeatResponse = null;
-//					
-//					try {
-//						serializedHeartBeatResponse = nameNode.heartBeat(serializedHeartBeatRequest);
-//					} catch (RemoteException | InvalidProtocolBufferException e) {
-//						e.printStackTrace();
-//					}
-//					
-//					HeartBeatResponse heartBeatResponse = null;
-//					
-//					try {
-//						heartBeatResponse = HeartBeatResponse.parseFrom(serializedHeartBeatResponse);
-//					} catch (InvalidProtocolBufferException e) {
-//						e.printStackTrace();
-//					}
-//					
-//					Integer heartBeatStatus = heartBeatResponse.getStatus();
-//					
-//					if (heartBeatStatus.equals(heartBeatID)) {
-//						System.out.println(" Heart Beating... ");
-//					}
-//					
-//					try {
-//						Thread.sleep(heartBeatTimeout);
-//					} catch (InterruptedException e) {
-//						// nope
-//					}
-//				}
-//			}
-//		}).start();
-
+		new Thread(new Runnable() {
+			
+			@Override
+			public void run() {
+				
+				
+				
+			}
+		}).start();
+		
+		
 		DataNode dataNode = new DataNode();
 		try {
 			dataNode.check();
@@ -113,7 +118,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			// TODO Auto-generated catch block
 			System.out.println(e);
 		}
-//		Naming.rebind("DataNode" + serverID.toString(), dataNode);
+		Naming.rebind("DataNode", dataNode);
 	}
 
 	@Override
@@ -121,7 +126,6 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 		// TODO Auto-generated method stub
 		byte[] serializedReadBlockResponse = null;
 		try {
-			
 			ReadBlockRequest readBlockRequest = ReadBlockRequest.parseFrom(serializedReadBlockRequest);
 			Integer blockNumber = readBlockRequest.getBlockNumber();
 			Path path = Paths.get(Integer.toString(blockNumber));

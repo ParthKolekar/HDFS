@@ -5,12 +5,12 @@ import java.rmi.AlreadyBoundException;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.HashMap;
 
-import Protobuf.HDFSProtobuf.OpenFileRequest;
 import Protobuf.HDFSProtobuf.BlockReportRequest;
 import Protobuf.HDFSProtobuf.HeartBeatRequest;
 import Protobuf.HDFSProtobuf.HeartBeatResponse;
-import Protobuf.HDFSProtobuf.OpenFileResponse;
+import Protobuf.HDFSProtobuf.OpenFileRequest;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -18,9 +18,12 @@ import com.google.protobuf.InvalidProtocolBufferException;
 public class NameNode extends UnicastRemoteObject implements INameNode {
 
 	private static final long serialVersionUID = 1L;
+	private static HashMap<String, Integer> fileNameHandleMap;
+	private static HashMap<Integer, Array<Integer>>
 
 	public NameNode() throws RemoteException {
 		super();
+		fileNameHandleMap = new HashMap<String, Integer>();
 	}
 
 	public static void main(String[] args) throws RemoteException, MalformedURLException, AlreadyBoundException {
@@ -36,10 +39,10 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			OpenFileRequest openFileRequest = OpenFileRequest.parseFrom(serializedOpenFileRequest);
 			String fileName = openFileRequest.getFileName();
 			Boolean forRead  = openFileRequest.getForRead();
-			if(forRead) {
+						
+			if (forRead) {
 				
-			}
-			else {
+			} else {
 				
 			}
 				
@@ -77,6 +80,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 	@Override
 	public byte[] blockReport(byte[] serializedBlockReportRequest) throws RemoteException, InvalidProtocolBufferException {
 		BlockReportRequest blockReportRequest = BlockReportRequest.parseFrom(serializedBlockReportRequest);
+		
 		return null;
 	}
 	
