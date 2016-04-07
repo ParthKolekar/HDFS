@@ -161,6 +161,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			handleBlockIDMap.get(handle).add(blockID);
 			return AssignBlockResponse.newBuilder().setStatus(1).setNewBlock(BlockLocations.newBuilder().setBlockNumber(blockID).addLocations(livingDataNodes.get(random.nextInt(livingDataNodes.size()) + 1)).addLocations(livingDataNodes.get(random.nextInt(livingDataNodes.size()) + 1))).build().toByteArray();
 		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
 			return AssignBlockResponse.newBuilder().setStatus(0).build().toByteArray();
 		}
 	}
@@ -187,6 +188,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			}
 			return blockReportResonse.build().toByteArray();
 		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
 			return BlockReportResponse.newBuilder().addStatus(0).build().toByteArray();
 		}
 	}
@@ -201,6 +203,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 				return CloseFileResponse.newBuilder().setStatus(0).build().toByteArray();
 			}
 		} catch (IOException e) {
+			e.printStackTrace();
 			return CloseFileResponse.newBuilder().setStatus(0).build().toByteArray();
 		}
 	}
@@ -215,6 +218,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			}
 			return blockLocationResponse.setStatus(1).build().toByteArray();
 		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
 			return BlockLocationResponse.newBuilder().setStatus(0).build().toByteArray();
 		}
 	}
@@ -231,13 +235,14 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			}
 			return HeartBeatResponse.newBuilder().setStatus(1).build().toByteArray();
 		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
 			return HeartBeatResponse.newBuilder().setStatus(0).build().toByteArray();
 		}
 	}
 
 	@Override
 	public byte[] list(byte[] serializedListFilesRequest) {
-		return ListFilesResponse.newBuilder().addAllFileNames(fileNameHandleMap.keySet()).setStatus(1).build().toByteArray();
+		return ListFilesResponse.newBuilder().setStatus(1).addAllFileNames(fileNameHandleMap.keySet()).build().toByteArray();
 	}
 
 	@Override
@@ -251,15 +256,16 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 				if (handle == null) {
 					return OpenFileResponse.newBuilder().setStatus(0).build().toByteArray();
 				} else {
-					return OpenFileResponse.newBuilder().setHandle(handle).addAllBlockNums(handleBlockIDMap.get(handle)).build().toByteArray();
+					return OpenFileResponse.newBuilder().setStatus(1).setHandle(handle).addAllBlockNums(handleBlockIDMap.get(handle)).build().toByteArray();
 				}
 			} else {
 				Integer handle = getNewHandleID();
 				fileNameHandleMap.put(fileName, handle);
 				handleBlockIDMap.put(handle, new ArrayList<Integer>());
-				return OpenFileResponse.newBuilder().setHandle(handle).build().toByteArray();
+				return OpenFileResponse.newBuilder().setStatus(1).setHandle(handle).build().toByteArray();
 			}
 		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
 			return OpenFileResponse.newBuilder().setStatus(0).build().toByteArray();
 		}
 	}

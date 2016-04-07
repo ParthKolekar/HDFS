@@ -1,33 +1,82 @@
 package Client;
 
-import java.io.FileNotFoundException;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.util.Properties;
 import java.util.Scanner;
 
 import NameNode.INameNode;
 import Protobuf.HDFSProtobuf.BlockLocationRequest;
+import Protobuf.HDFSProtobuf.BlockLocationResponse;
 import Protobuf.HDFSProtobuf.CloseFileRequest;
 import Protobuf.HDFSProtobuf.CloseFileResponse;
+import Protobuf.HDFSProtobuf.ListFilesRequest;
+import Protobuf.HDFSProtobuf.ListFilesResponse;
 import Protobuf.HDFSProtobuf.OpenFileRequest;
 import Protobuf.HDFSProtobuf.OpenFileResponse;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+
 public class Client {
+
+	private static final String configurationFile = "Resources/client.properties";
 	private static String commandSeperator = "--";
 	private static Boolean isSingleCommand = false;
+	private static String nameNodeLocation;
 
-	private static void get(String fileName) {
-		OpenFileRequest.Builder openFileRequest = OpenFileRequest.newBuilder();
-		openFileRequest.setFileName(fileName);
-		openFileRequest.setForRead(false);
-		byte[] serializedOpenFileRequest = openFileRequest.build().toByteArray();
+	private static void get(String fileName) throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
+		INameNode nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
+		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(fileName).setForRead(true).build().toByteArray()));
+		if (openFileResponse.getStatus() == 0) {
+			System.err.println("Error in OpenFileRequest...");
+			return;
+		}
+		Integer handle = openFileResponse.getHandle();
+
+		BlockLocationResponse blockLocationResponse = BlockLocationResponse.parseFrom(nameNode.getBlockLocations(BlockLocationRequest.newBuilder().addAllBlockNums(openFileResponse.getBlockNumsList()).build().toByteArray()));
+		if (blockLocationResponse.getStatus() == 0) {
+			System.err.println("Error in BlockLocationRequest...");
+			return;
+		}
+
+		System.out.println(blockLocationResponse.getBlockLocationsList());
+
+		CloseFileResponse closeFileResponse = CloseFileResponse.parseFrom(nameNode.closeFile(CloseFileRequest.newBuilder().setHandle(handle).build().toByteArray()));
+		if (closeFileResponse.getStatus() == 0) {
+			System.err.println("Error in CloseFileRequest...");
+			return;
+		}
 	}
 
-	private static void list() {
-
+	private static void list() throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
+		INameNode nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
+		ListFilesResponse listFilesResponse = ListFilesResponse.parseFrom(nameNode.list(ListFilesRequest.newBuilder().build().toByteArray()));
+		if (listFilesResponse.getStatus() == 0) {
+			System.err.println("Error in OpenFileRequest...");
+			return;
+		}
+		System.out.println(listFilesResponse.getFileNamesList());
+		// TODO: Prettify
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException, NotBoundException {
+
+		Properties properties = new Properties();
+		InputStream inputStream = new FileInputStream(configurationFile);
+		properties.load(inputStream);
+
+		nameNodeLocation = properties.getProperty("NameNode Location");
+
+		if (nameNodeLocation == null) {
+			System.out.println("Configuration Missing...");
+			System.exit(-1);
+		}
+
 		for (String temp : args) {
 			if (temp.equals(commandSeperator)) {
 				isSingleCommand = true;
@@ -37,11 +86,11 @@ public class Client {
 		if (isSingleCommand) {
 			StringBuilder stringBuilder = new StringBuilder();
 			Boolean flag = false;
-			String sep = "";
+			String separator = "";
 			for (String temp : args) {
 				if (flag) {
-					stringBuilder.append(sep).append(temp);
-					sep = " ";
+					stringBuilder.append(separator).append(temp);
+					separator = " ";
 				}
 				if (temp.equals(commandSeperator)) {
 					flag = true;
@@ -49,7 +98,6 @@ public class Client {
 			}
 			parseCommand(stringBuilder.toString().trim());
 		} else {
-			// TODO: Go Console Mode
 			String command = new String();
 			while (!command.equals("exit")) {
 				System.out.print(">>> ");
@@ -62,32 +110,28 @@ public class Client {
 		}
 	}
 
-	private static void parseCommand(String command) {
-		// System.err.println("Executing Command : " + command);
-		String[] argumentList = command.split(" ");
+	private static void parseCommand(String command) throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
+
+		String[] argumentList = command.split(" ", 2);
 
 		String type = argumentList[0];
 
 		switch (type) {
 		case "list":
-			try {
-				list();
-			} catch (Exception e) {
-				System.err.println("list");
-			}
+			list();
 			break;
 		case "get":
-			try {
+			if (argumentList.length <= 1) {
+				System.err.println("No FileName Given...");
+			} else {
 				get(argumentList[1]);
-			} catch (Exception e) {
-				System.err.println("get");
 			}
 			break;
 		case "put":
-			try {
+			if (argumentList.length <= 1) {
+				System.err.println("No FileName Given...");
+			} else {
 				put(argumentList[1]);
-			} catch (Exception e) {
-				System.err.println("Wrong number of arguments specified\n");
 			}
 			break;
 		case "exit":
@@ -99,41 +143,20 @@ public class Client {
 
 	}
 
-	private static void put(String fileName) {
-		try {
-			byte[] serializedOpenFileRequest = OpenFileRequest.newBuilder().setFileName(fileName).setForRead(true).build().toByteArray();
-			INameNode nameNode = (INameNode) Naming.lookup("NameNode");
-			byte[] serializedOpenFileResponse = null;
-			serializedOpenFileResponse = nameNode.openFile(serializedOpenFileRequest);
-			OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(serializedOpenFileRequest);
-			Integer openStatus = openFileResponse.getStatus();
-			if (openStatus == 0) {
-				throw new FileNotFoundException();
-			}
-			Integer handle = openFileResponse.getHandle();
-			// Highly doubtful
-			Integer[] blockNums = openFileResponse.getBlockNumsList().toArray(new Integer[0]);
-			// I am not sure what to do here. pdf says to use loop but here we
-			// can send entire arrays
-			for (Integer block : blockNums) {
-				BlockLocationRequest.Builder blockLocationRequest = BlockLocationRequest.newBuilder();
-				blockLocationRequest.addAllBlockNums(openFileResponse.getBlockNumsList());
+	private static void put(String fileName) throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
 
-			}
-			CloseFileRequest.Builder closeFileRequest = CloseFileRequest.newBuilder();
-			closeFileRequest.setHandle(handle);
-			byte[] serializedCloseFileRequest = closeFileRequest.build().toByteArray();
-			byte[] serializedCloseFileResponse = null;
-			serializedCloseFileResponse = nameNode.closeFile(serializedCloseFileRequest);
-			CloseFileResponse closeFileResponse = CloseFileResponse.parseFrom(serializedCloseFileResponse);
-			Integer closeStatus = closeFileResponse.getStatus();
-			if (closeStatus == 0) {
-				throw new IOException();
-			}
-		} catch (Exception e) {
-			System.err.println(e);
-			// TODO: handle exception
+		INameNode nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
+		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(fileName).setForRead(false).build().toByteArray()));
+		if (openFileResponse.getStatus() == 0) {
+			System.err.println("Error in OpenFileRequest...");
+			return;
+		}
+		Integer handle = openFileResponse.getHandle();
 
+		CloseFileResponse closeFileResponse = CloseFileResponse.parseFrom(nameNode.closeFile(CloseFileRequest.newBuilder().setHandle(handle).build().toByteArray()));
+		if (closeFileResponse.getStatus() == 0) {
+			System.err.println("Error in CloseFileRequest...");
+			return;
 		}
 	}
 

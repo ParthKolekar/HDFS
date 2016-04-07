@@ -205,6 +205,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			readBlockResponse.setStatus(1);
 			return readBlockResponse.build().toByteArray();
 		} catch (IOException e) {
+			e.printStackTrace();
 			return ReadBlockResponse.newBuilder().setStatus(0).build().toByteArray();
 		}
 	}
@@ -243,6 +244,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			writeBlockResponse.setStatus(1);
 			return writeBlockResponse.build().toByteArray();
 		} catch (IOException e) {
+			e.printStackTrace();
 			return WriteBlockResponse.newBuilder().setStatus(0).build().toByteArray();
 		}
 	}
