@@ -20,9 +20,7 @@ public class Client {
 		OpenFileRequest.Builder openFileRequest = OpenFileRequest.newBuilder();
 		openFileRequest.setFileName(fileName);
 		openFileRequest.setForRead(false);
-		byte[] serializedOpenFileRequest = openFileRequest.build()
-				.toByteArray();
-
+		byte[] serializedOpenFileRequest = openFileRequest.build().toByteArray();
 	}
 
 	private static void list() {
@@ -103,42 +101,31 @@ public class Client {
 
 	private static void put(String fileName) {
 		try {
-			byte[] serializedOpenFileRequest = OpenFileRequest.newBuilder()
-					.setFileName(fileName).setForRead(true).build()
-					.toByteArray();
+			byte[] serializedOpenFileRequest = OpenFileRequest.newBuilder().setFileName(fileName).setForRead(true).build().toByteArray();
 			INameNode nameNode = (INameNode) Naming.lookup("NameNode");
 			byte[] serializedOpenFileResponse = null;
-			serializedOpenFileResponse = nameNode
-					.openFile(serializedOpenFileRequest);
-			OpenFileResponse openFileResponse = OpenFileResponse
-					.parseFrom(serializedOpenFileRequest);
+			serializedOpenFileResponse = nameNode.openFile(serializedOpenFileRequest);
+			OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(serializedOpenFileRequest);
 			Integer openStatus = openFileResponse.getStatus();
 			if (openStatus == 0) {
 				throw new FileNotFoundException();
 			}
 			Integer handle = openFileResponse.getHandle();
 			// Highly doubtful
-			Integer[] blockNums = openFileResponse.getBlockNumsList().toArray(
-					new Integer[0]);
+			Integer[] blockNums = openFileResponse.getBlockNumsList().toArray(new Integer[0]);
 			// I am not sure what to do here. pdf says to use loop but here we
 			// can send entire arrays
 			for (Integer block : blockNums) {
-				BlockLocationRequest.Builder blockLocationRequest = BlockLocationRequest
-						.newBuilder();
-				blockLocationRequest.addAllBlockNums(openFileResponse
-						.getBlockNumsList());
+				BlockLocationRequest.Builder blockLocationRequest = BlockLocationRequest.newBuilder();
+				blockLocationRequest.addAllBlockNums(openFileResponse.getBlockNumsList());
 
 			}
-			CloseFileRequest.Builder closeFileRequest = CloseFileRequest
-					.newBuilder();
+			CloseFileRequest.Builder closeFileRequest = CloseFileRequest.newBuilder();
 			closeFileRequest.setHandle(handle);
-			byte[] serializedCloseFileRequest = closeFileRequest.build()
-					.toByteArray();
+			byte[] serializedCloseFileRequest = closeFileRequest.build().toByteArray();
 			byte[] serializedCloseFileResponse = null;
-			serializedCloseFileResponse = nameNode
-					.closeFile(serializedCloseFileRequest);
-			CloseFileResponse closeFileResponse = CloseFileResponse
-					.parseFrom(serializedCloseFileResponse);
+			serializedCloseFileResponse = nameNode.closeFile(serializedCloseFileRequest);
+			CloseFileResponse closeFileResponse = CloseFileResponse.parseFrom(serializedCloseFileResponse);
 			Integer closeStatus = closeFileResponse.getStatus();
 			if (closeStatus == 0) {
 				throw new IOException();

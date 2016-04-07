@@ -13,6 +13,7 @@ import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.rmi.AlreadyBoundException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -41,14 +42,21 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 
 	private static final long serialVersionUID = 1L;
 	private static final String configurationFile = "Resources/datanode.properties";
+	private static Integer serverID;
 	private static String networkInterface;
 	private static Integer heartBeatTimeout;
 	private static Integer blockReportTimeout;
-	private static Integer heartBeatID = 0;
 	private static File dataDirectory;
 	private static String nameNodeLocation;
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, AlreadyBoundException {
+
+		if (args.length != 1) {
+			System.err.println("USAGE: java DataNode <serverID>");
+			System.exit(-1);
+		}
+
+		serverID = Integer.parseInt(args[0]);
 
 		Properties properties = new Properties();
 		InputStream inputStream = new FileInputStream(configurationFile);
@@ -60,54 +68,44 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 		dataDirectory = new File(properties.getProperty("Data Directory"));
 		nameNodeLocation = properties.getProperty("NameNode Location");
 
-		System.out.println(networkInterface);
-		System.out.println(heartBeatTimeout);
-		System.out.println(blockReportTimeout);
-		System.out.println(dataDirectory);
-		System.out.println(nameNodeLocation);
+		if ((networkInterface == null) || (heartBeatTimeout == null) || (blockReportTimeout == null) || (dataDirectory == null) || (nameNodeLocation == null)) {
+			System.out.println("Configuration Missing...");
+			System.exit(-1);
+		}
+		System.out.println();
 
 		new Thread(new Runnable() {
 
 			@Override
 			public void run() {
 				while (true) {
-					heartBeatID++;
 					HeartBeatRequest.Builder heartBeatRequest = HeartBeatRequest.newBuilder();
-					heartBeatRequest.setId(heartBeatID);
-
+					heartBeatRequest.setId(serverID);
 					INameNode nameNode = null;
-
 					try {
 						nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
 					} catch (MalformedURLException | RemoteException | NotBoundException e) {
 						e.printStackTrace();
 					}
-
 					byte[] serializedHeartBeatResponse = null;
-
 					try {
 						serializedHeartBeatResponse = nameNode.heartBeat(heartBeatRequest.build().toByteArray());
 					} catch (RemoteException | InvalidProtocolBufferException e) {
 						e.printStackTrace();
 					}
-
 					HeartBeatResponse heartBeatResponse = null;
-
 					try {
 						heartBeatResponse = HeartBeatResponse.parseFrom(serializedHeartBeatResponse);
 					} catch (InvalidProtocolBufferException e) {
 						e.printStackTrace();
 					}
-
 					Integer heartBeatStatus = heartBeatResponse.getStatus();
-
-					if (heartBeatStatus.equals(heartBeatID)) {
+					if (heartBeatStatus.equals(1)) {
 						System.out.println("Heart Beating...");
 					} else {
 						System.err.println("Heart not beating properly...");
 						System.exit(-1);
 					}
-
 					try {
 						Thread.sleep(heartBeatTimeout);
 					} catch (InterruptedException e) {
@@ -129,7 +127,6 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 							return pathname.isFile() && !pathname.isHidden() && pathname.canRead() && pathname.getName().matches("^-?\\d+$");
 						}
 					});
-
 					if (blockNumbers == null) {
 						System.err.println("Error Reading Data Directory");
 						System.exit(-1);
@@ -151,43 +148,34 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 						System.exit(-1);
 					}
 					BlockReportRequest.Builder blockReportRequest = BlockReportRequest.newBuilder();
-					blockReportRequest.setLocation(DataNodeLocation.newBuilder().setIP(inetAddress.getHostAddress()).setPort(Registry.REGISTRY_PORT));
-
+					blockReportRequest.setId(serverID).setLocation(DataNodeLocation.newBuilder().setIP(inetAddress.getHostAddress()).setPort(Registry.REGISTRY_PORT));
 					for (File tempFile : blockNumbers) {
 						blockReportRequest.addBlockNumbers(Integer.parseInt(tempFile.getName()));
 					}
-
 					INameNode nameNode = null;
-
 					try {
 						nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
 					} catch (MalformedURLException | RemoteException | NotBoundException e) {
 						e.printStackTrace();
 					}
-
 					byte[] serializedBlockReportResponse = null;
-
 					try {
 						serializedBlockReportResponse = nameNode.blockReport(blockReportRequest.build().toByteArray());
 					} catch (RemoteException | InvalidProtocolBufferException e) {
 						e.printStackTrace();
 					}
-
 					BlockReportResponse blockReportResponse = null;
-
 					try {
 						blockReportResponse = BlockReportResponse.parseFrom(serializedBlockReportResponse);
 					} catch (InvalidProtocolBufferException e) {
 						e.printStackTrace();
 					}
-
 					for (Integer tempStatus : blockReportResponse.getStatusList()) {
 						if (tempStatus == 0) {
 							System.err.println("Error in making Block Request Report");
 							System.exit(-1);
 						}
 					}
-
 					try {
 						Thread.sleep(blockReportTimeout);
 					} catch (InterruptedException e) {
@@ -197,35 +185,9 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			}
 		}).start();
 
-		// try {
-		// dataNode.check();
-		// Path path = Paths.get(Integer.toString(1));
-		// byte[] data = Files.readAllBytes(path);
-		// } catch (Exception e) {
-		// // TODO Auto-generated catch block
-		// System.out.println(e);
-		// }
-
 		DataNode dataNode = new DataNode();
-		Naming.rebind("DataNode", dataNode);
+		Naming.bind("DataNode", dataNode);
 	}
-
-	// public void check() throws RemoteException,
-	// InvalidProtocolBufferException
-	// {
-	// ReadBlockRequest.Builder readBlockRequest =
-	// ReadBlockRequest.newBuilder();
-	// readBlockRequest.setBlockNumber(1);
-	//
-	// byte[] serializedReadBlockRequest =
-	// readBlockRequest.build().toByteArray();
-	// // DataNode a = new DataNode();
-	// byte [] response = this.readBlock(serializedReadBlockRequest);
-	// ReadBlockResponse readBlockResponse =
-	// ReadBlockResponse.parseFrom(response);
-	// System.out.println(readBlockResponse.getStatus());
-	//
-	// }
 
 	public DataNode() throws RemoteException {
 		super();
@@ -255,27 +217,20 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			BlockLocations blockLocations = writeBlockRequest.getBlockInfo();
 			Integer blockNumber = blockLocations.getBlockNumber();
 			List<DataNodeLocation> dataNodeLocations = blockLocations.getLocationsList();
-
 			Integer pendingLocations = blockLocations.getLocationsCount();
-
 			Path path = Paths.get(dataDirectory + Integer.toString(blockNumber));
 			Files.write(path, data.toByteArray());
-
 			if (pendingLocations >= 0) {
 				WriteBlockRequest.Builder cascadingWriteBlockRequest = WriteBlockRequest.newBuilder();
 				cascadingWriteBlockRequest.addAllData(writeBlockRequest.getDataList());
 				cascadingWriteBlockRequest.setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(1, dataNodeLocations.size())));
-
 				DataNodeLocation location = blockLocations.getLocations(0);
-
 				IDataNode dataNode = null;
-
 				try {
 					dataNode = (IDataNode) Naming.lookup("rmi://" + location.getIP() + ":" + location.getPort() + "/" + "DataNode");
 				} catch (NotBoundException e) {
 					e.printStackTrace();
 				}
-
 				byte[] serializedCascadingWriteBlockResponse = dataNode.writeBlock(cascadingWriteBlockRequest.build().toByteArray());
 				WriteBlockResponse cascadingWriteBlockResponse = WriteBlockResponse.parseFrom(serializedCascadingWriteBlockResponse);
 
@@ -284,7 +239,6 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 					return WriteBlockResponse.newBuilder().setStatus(0).build().toByteArray();
 				}
 			}
-
 			WriteBlockResponse.Builder writeBlockResponse = WriteBlockResponse.newBuilder();
 			writeBlockResponse.setStatus(1);
 			return writeBlockResponse.build().toByteArray();
