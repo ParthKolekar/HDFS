@@ -15,7 +15,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
+import java.util.Random;
 
+import Protobuf.HDFSProtobuf.AssignBlockRequest;
+import Protobuf.HDFSProtobuf.AssignBlockResponse;
+import Protobuf.HDFSProtobuf.BlockLocationRequest;
+import Protobuf.HDFSProtobuf.BlockLocationResponse;
+import Protobuf.HDFSProtobuf.BlockLocations;
 import Protobuf.HDFSProtobuf.BlockReportRequest;
 import Protobuf.HDFSProtobuf.BlockReportResponse;
 import Protobuf.HDFSProtobuf.CloseFileRequest;
@@ -147,7 +153,16 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 
 	@Override
 	public byte[] assignBlock(byte[] serializedAssignBlockRequest) {
-		return null;
+		try {
+			AssignBlockRequest assignBlockRequest = AssignBlockRequest.parseFrom(serializedAssignBlockRequest);
+			Integer handle = assignBlockRequest.getHandle();
+			Random random = new Random();
+			Integer blockID = random.nextInt();
+			handleBlockIDMap.get(handle).add(blockID);
+			return AssignBlockResponse.newBuilder().setStatus(1).setNewBlock(BlockLocations.newBuilder().setBlockNumber(blockID).addLocations(livingDataNodes.get(random.nextInt(livingDataNodes.size()) + 1)).addLocations(livingDataNodes.get(random.nextInt(livingDataNodes.size()) + 1))).build().toByteArray();
+		} catch (InvalidProtocolBufferException e) {
+			return AssignBlockResponse.newBuilder().setStatus(0).build().toByteArray();
+		}
 	}
 
 	@Override
@@ -192,7 +207,16 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 
 	@Override
 	public byte[] getBlockLocations(byte[] serializedGetBlockLocationRequest) {
-		return null;
+		try {
+			BlockLocationRequest blockLocationRequest = BlockLocationRequest.parseFrom(serializedGetBlockLocationRequest);
+			BlockLocationResponse.Builder blockLocationResponse = BlockLocationResponse.newBuilder();
+			for (Integer tempBlockNum : blockLocationRequest.getBlockNumsList()) {
+				blockLocationResponse.addBlockLocations(BlockLocations.newBuilder().addAllLocations(blockIDLocationMap.get(tempBlockNum)).setBlockNumber(tempBlockNum));
+			}
+			return blockLocationResponse.setStatus(1).build().toByteArray();
+		} catch (InvalidProtocolBufferException e) {
+			return BlockLocationResponse.newBuilder().setStatus(0).build().toByteArray();
+		}
 	}
 
 	@Override
