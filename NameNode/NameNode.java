@@ -37,6 +37,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 public class NameNode extends UnicastRemoteObject implements INameNode {
 
+	private static final String blockIDDelimiter = ",";
+	private static final String fileNameDelimiter = "--";
 	private static final long serialVersionUID = 1L;
 	private static final String configurationFile = "Resources/namenode.properties";
 	private static HashMap<String, Integer> fileNameHandleMap;
@@ -51,14 +53,13 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 		StringBuilder stringBuilder = new StringBuilder();
 		for (String tempfileNameString : fileNameHandleMap.keySet()) {
 			stringBuilder.append(tempfileNameString);
-			stringBuilder.append("--");
+			stringBuilder.append(fileNameDelimiter);
 			String separator = "";
-			Integer handle = fileNameHandleMap.get(tempfileNameString);
-			for (Integer tempInteger : handleBlockIDMap.get(handle)) {
+			for (Integer tempInteger : handleBlockIDMap.get(fileNameHandleMap.get(tempfileNameString))) {
 				stringBuilder.append(separator).append(Integer.toString(tempInteger));
-				separator = ",";
+				separator = blockIDDelimiter;
 			}
-			stringBuilder.append("\n");
+			stringBuilder.append(System.lineSeparator());
 		}
 		BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(dataFile));
 		bufferedWriter.write(stringBuilder.toString());
@@ -74,12 +75,12 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 		BufferedReader bufferedReader = new BufferedReader(new FileReader(dataFile));
 		for (String tempLine; (tempLine = bufferedReader.readLine()) != null;) {
 			Integer handle = getNewHandleID();
-			String[] splitStrings = tempLine.split("--", 2);
+			String[] splitStrings = tempLine.split(fileNameDelimiter, 2);
 			String fileName = splitStrings[0];
 			ArrayList<Integer> blockNumbers = new ArrayList<Integer>();
 
 			if (!splitStrings[1].equals("")) {
-				for (String tempString : splitStrings[1].split(",")) {
+				for (String tempString : splitStrings[1].split(blockIDDelimiter)) {
 					blockNumbers.add(Integer.parseInt(tempString));
 				}
 			}
@@ -143,8 +144,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 
 		System.out.println("Loaded NameNode");
 
-		NameNode nameNode = new NameNode();
-		Naming.rebind("NameNode", nameNode);
+		Naming.rebind("NameNode", new NameNode());
 	}
 
 	public NameNode() throws RemoteException {
@@ -154,12 +154,13 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 	@Override
 	public byte[] assignBlock(byte[] serializedAssignBlockRequest) {
 		try {
-			AssignBlockRequest assignBlockRequest = AssignBlockRequest.parseFrom(serializedAssignBlockRequest);
-			Integer handle = assignBlockRequest.getHandle();
-			Random random = new Random();
-			Integer blockID = random.nextInt();
-			handleBlockIDMap.get(handle).add(blockID);
-			return AssignBlockResponse.newBuilder().setStatus(1).setNewBlock(BlockLocations.newBuilder().setBlockNumber(blockID).addLocations(livingDataNodes.get(random.nextInt(livingDataNodes.size()) + 1)).addLocations(livingDataNodes.get(random.nextInt(livingDataNodes.size()) + 1))).build().toByteArray();
+			Integer blockID = new Random().nextInt();
+			handleBlockIDMap.get(AssignBlockRequest.parseFrom(serializedAssignBlockRequest).getHandle()).add(blockID);
+			if (livingDataNodes.size() == 0) {
+				System.out.println("Unable to provide locations with no registered DataNodes...");
+				return AssignBlockResponse.newBuilder().setStatus(0).build().toByteArray();
+			}
+			return AssignBlockResponse.newBuilder().setStatus(1).setNewBlock(BlockLocations.newBuilder().setBlockNumber(blockID).addLocations(livingDataNodes.get(new Random().nextInt(livingDataNodes.size()) + 1)).addLocations(livingDataNodes.get(new Random().nextInt(livingDataNodes.size()) + 1))).build().toByteArray();
 		} catch (InvalidProtocolBufferException e) {
 			e.printStackTrace();
 			return AssignBlockResponse.newBuilder().setStatus(0).build().toByteArray();
@@ -226,8 +227,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 	@Override
 	public byte[] heartBeat(byte[] serializedHeartBeatRequest) {
 		try {
-			HeartBeatRequest heartBeatRequest = HeartBeatRequest.parseFrom(serializedHeartBeatRequest);
-			Integer serverID = heartBeatRequest.getId();
+			Integer serverID = HeartBeatRequest.parseFrom(serializedHeartBeatRequest).getId();
 			if (livingDataNodes.get(serverID) != null) {
 				System.out.println("DataNode : " + serverID.toString() + " beating...");
 			} else {

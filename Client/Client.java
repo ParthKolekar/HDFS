@@ -4,22 +4,35 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
 
+import DataNode.IDataNode;
 import NameNode.INameNode;
+import Protobuf.HDFSProtobuf.AssignBlockRequest;
+import Protobuf.HDFSProtobuf.AssignBlockResponse;
 import Protobuf.HDFSProtobuf.BlockLocationRequest;
 import Protobuf.HDFSProtobuf.BlockLocationResponse;
+import Protobuf.HDFSProtobuf.BlockLocations;
 import Protobuf.HDFSProtobuf.CloseFileRequest;
 import Protobuf.HDFSProtobuf.CloseFileResponse;
+import Protobuf.HDFSProtobuf.DataNodeLocation;
 import Protobuf.HDFSProtobuf.ListFilesRequest;
 import Protobuf.HDFSProtobuf.ListFilesResponse;
 import Protobuf.HDFSProtobuf.OpenFileRequest;
 import Protobuf.HDFSProtobuf.OpenFileResponse;
+import Protobuf.HDFSProtobuf.ReadBlockRequest;
+import Protobuf.HDFSProtobuf.ReadBlockResponse;
+import Protobuf.HDFSProtobuf.WriteBlockRequest;
+import Protobuf.HDFSProtobuf.WriteBlockResponse;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 public class Client {
@@ -29,7 +42,7 @@ public class Client {
 	private static Boolean isSingleCommand = false;
 	private static String nameNodeLocation;
 
-	private static void get(String fileName) throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
+	private static void get(String fileName) throws NotBoundException, IOException {
 		INameNode nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(fileName).setForRead(true).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {
@@ -44,7 +57,15 @@ public class Client {
 			return;
 		}
 
-		System.out.println(blockLocationResponse.getBlockLocationsList());
+		for (BlockLocations tempBlockLocations : blockLocationResponse.getBlockLocationsList()) {
+			DataNodeLocation location = tempBlockLocations.getLocations(0);
+			ReadBlockResponse readBlockResponse = ReadBlockResponse.parseFrom(((IDataNode) Naming.lookup("rmi://" + location.getIP() + ":" + location.getPort() + "/" + "DataNode")).readBlock(ReadBlockRequest.newBuilder().setBlockNumber(tempBlockLocations.getBlockNumber()).build().toByteArray()));
+			if (readBlockResponse.getStatus() == 0) {
+				System.err.println("Error in ReadBlockRequest...");
+				return;
+			}
+			Files.write(Paths.get(fileName), ByteString.copyFrom(readBlockResponse.getDataList()).toByteArray());
+		}
 
 		CloseFileResponse closeFileResponse = CloseFileResponse.parseFrom(nameNode.closeFile(CloseFileRequest.newBuilder().setHandle(handle).build().toByteArray()));
 		if (closeFileResponse.getStatus() == 0) {
@@ -110,13 +131,11 @@ public class Client {
 		}
 	}
 
-	private static void parseCommand(String command) throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
+	private static void parseCommand(String command) throws NotBoundException, IOException {
 
 		String[] argumentList = command.split(" ", 2);
 
-		String type = argumentList[0];
-
-		switch (type) {
+		switch (argumentList[0]) {
 		case "list":
 			list();
 			break;
@@ -138,12 +157,12 @@ public class Client {
 			System.out.println("Exiting...");
 			break;
 		default:
-			System.err.println("Undefined type of command " + type);
+			System.err.println("Undefined type of command " + argumentList[0]);
 		}
 
 	}
 
-	private static void put(String fileName) throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
+	private static void put(String fileName) throws NotBoundException, IOException {
 
 		INameNode nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(fileName).setForRead(false).build().toByteArray()));
@@ -152,6 +171,25 @@ public class Client {
 			return;
 		}
 		Integer handle = openFileResponse.getHandle();
+
+		AssignBlockResponse assignBlockResponse = AssignBlockResponse.parseFrom(nameNode.assignBlock(AssignBlockRequest.newBuilder().setHandle(handle).build().toByteArray()));
+		if (assignBlockResponse.getStatus() == 0) {
+			System.err.println("Error in AssignBlockRequest...");
+			return;
+		}
+
+		BlockLocations blockLocations = assignBlockResponse.getNewBlock();
+		Integer blockNumber = blockLocations.getBlockNumber();
+		List<DataNodeLocation> dataNodeLocations = blockLocations.getLocationsList();
+		DataNodeLocation location = dataNodeLocations.get(0);
+
+		IDataNode dataNode = (IDataNode) Naming.lookup("rmi://" + location.getIP() + ":" + location.getPort() + "/" + "DataNode");
+
+		WriteBlockResponse writeBlockResponse = WriteBlockResponse.parseFrom(dataNode.writeBlock(WriteBlockRequest.newBuilder().addData(ByteString.copyFrom(Files.readAllBytes(Paths.get(fileName)))).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(0, dataNodeLocations.size()))).build().toByteArray()));
+		if (writeBlockResponse.getStatus() == 0) {
+			System.err.println("Error in WriteBlockRequest...");
+			return;
+		}
 
 		CloseFileResponse closeFileResponse = CloseFileResponse.parseFrom(nameNode.closeFile(CloseFileRequest.newBuilder().setHandle(handle).build().toByteArray()));
 		if (closeFileResponse.getStatus() == 0) {

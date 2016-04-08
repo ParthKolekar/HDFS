@@ -11,7 +11,6 @@ import java.net.MalformedURLException;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.rmi.AlreadyBoundException;
 import java.rmi.Naming;
@@ -147,8 +146,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 						System.err.println("Error Obtaining Network Information");
 						System.exit(-1);
 					}
-					BlockReportRequest.Builder blockReportRequest = BlockReportRequest.newBuilder();
-					blockReportRequest.setId(serverID).setLocation(DataNodeLocation.newBuilder().setIP(inetAddress.getHostAddress()).setPort(Registry.REGISTRY_PORT));
+					BlockReportRequest.Builder blockReportRequest = BlockReportRequest.newBuilder().setId(serverID).setLocation(DataNodeLocation.newBuilder().setIP(inetAddress.getHostAddress()).setPort(Registry.REGISTRY_PORT));
 					for (File tempFile : blockNumbers) {
 						blockReportRequest.addBlockNumbers(Integer.parseInt(tempFile.getName()));
 					}
@@ -185,8 +183,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			}
 		}).start();
 
-		DataNode dataNode = new DataNode();
-		Naming.bind("DataNode", dataNode);
+		Naming.bind("DataNode", new DataNode());
 	}
 
 	public DataNode() throws RemoteException {
@@ -196,14 +193,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 	@Override
 	public byte[] readBlock(byte[] serializedReadBlockRequest) {
 		try {
-			ReadBlockRequest readBlockRequest = ReadBlockRequest.parseFrom(serializedReadBlockRequest);
-			Integer blockNumber = readBlockRequest.getBlockNumber();
-			Path path = Paths.get(dataDirectory + Integer.toString(blockNumber));
-			byte[] data = Files.readAllBytes(path);
-			ReadBlockResponse.Builder readBlockResponse = ReadBlockResponse.newBuilder();
-			readBlockResponse.addData(ByteString.copyFrom(data));
-			readBlockResponse.setStatus(1);
-			return readBlockResponse.build().toByteArray();
+			return ReadBlockResponse.newBuilder().setStatus(1).addData(ByteString.copyFrom(Files.readAllBytes(Paths.get(dataDirectory + "/" + Integer.toString(ReadBlockRequest.parseFrom(serializedReadBlockRequest).getBlockNumber()))))).build().toByteArray();
 		} catch (IOException e) {
 			e.printStackTrace();
 			return ReadBlockResponse.newBuilder().setStatus(0).build().toByteArray();
@@ -214,36 +204,20 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 	public byte[] writeBlock(byte[] serializedWriteBlockRequest) {
 		try {
 			WriteBlockRequest writeBlockRequest = WriteBlockRequest.parseFrom(serializedWriteBlockRequest);
-			ByteString data = ByteString.copyFrom(writeBlockRequest.getDataList());
 			BlockLocations blockLocations = writeBlockRequest.getBlockInfo();
 			Integer blockNumber = blockLocations.getBlockNumber();
 			List<DataNodeLocation> dataNodeLocations = blockLocations.getLocationsList();
-			Integer pendingLocations = blockLocations.getLocationsCount();
-			Path path = Paths.get(dataDirectory + Integer.toString(blockNumber));
-			Files.write(path, data.toByteArray());
-			if (pendingLocations >= 0) {
-				WriteBlockRequest.Builder cascadingWriteBlockRequest = WriteBlockRequest.newBuilder();
-				cascadingWriteBlockRequest.addAllData(writeBlockRequest.getDataList());
-				cascadingWriteBlockRequest.setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(1, dataNodeLocations.size())));
+			Files.write(Paths.get(dataDirectory + "/" + Integer.toString(blockNumber)), ByteString.copyFrom(writeBlockRequest.getDataList()).toByteArray());
+			if (blockLocations.getLocationsCount() > 0) {
 				DataNodeLocation location = blockLocations.getLocations(0);
-				IDataNode dataNode = null;
-				try {
-					dataNode = (IDataNode) Naming.lookup("rmi://" + location.getIP() + ":" + location.getPort() + "/" + "DataNode");
-				} catch (NotBoundException e) {
-					e.printStackTrace();
-				}
-				byte[] serializedCascadingWriteBlockResponse = dataNode.writeBlock(cascadingWriteBlockRequest.build().toByteArray());
-				WriteBlockResponse cascadingWriteBlockResponse = WriteBlockResponse.parseFrom(serializedCascadingWriteBlockResponse);
-
-				if (cascadingWriteBlockResponse.getStatus() != 1) {
+				WriteBlockResponse cascadingWriteBlockResponse = WriteBlockResponse.parseFrom(((IDataNode) Naming.lookup("rmi://" + location.getIP() + ":" + location.getPort() + "/" + "DataNode")).writeBlock(WriteBlockRequest.newBuilder().addAllData(writeBlockRequest.getDataList()).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(1, dataNodeLocations.size()))).build().toByteArray()));
+				if (cascadingWriteBlockResponse.getStatus() == 0) {
 					System.err.println("Unable to Cascade Write Requests...");
 					return WriteBlockResponse.newBuilder().setStatus(0).build().toByteArray();
 				}
 			}
-			WriteBlockResponse.Builder writeBlockResponse = WriteBlockResponse.newBuilder();
-			writeBlockResponse.setStatus(1);
-			return writeBlockResponse.build().toByteArray();
-		} catch (IOException e) {
+			return WriteBlockResponse.newBuilder().setStatus(1).build().toByteArray();
+		} catch (IOException | NotBoundException e) {
 			e.printStackTrace();
 			return WriteBlockResponse.newBuilder().setStatus(0).build().toByteArray();
 		}
