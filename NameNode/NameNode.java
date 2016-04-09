@@ -37,9 +37,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 public class NameNode extends UnicastRemoteObject implements INameNode {
 
+	private static final long serialVersionUID = 1L;
 	private static final String blockIDDelimiter = ",";
 	private static final String fileNameDelimiter = "--";
-	private static final long serialVersionUID = 1L;
 	private static final String configurationFile = "Resources/namenode.properties";
 	private static HashMap<String, Integer> fileNameHandleMap;
 	private static HashMap<Integer, ArrayList<Integer>> handleBlockIDMap;
@@ -61,6 +61,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			}
 			stringBuilder.append(System.lineSeparator());
 		}
+
 		BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(dataFile));
 		bufferedWriter.write(stringBuilder.toString());
 		bufferedWriter.close();
@@ -78,7 +79,6 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			String[] splitStrings = tempLine.split(fileNameDelimiter, 2);
 			String fileName = splitStrings[0];
 			ArrayList<Integer> blockNumbers = new ArrayList<Integer>();
-
 			if (!splitStrings[1].equals("")) {
 				for (String tempString : splitStrings[1].split(blockIDDelimiter)) {
 					blockNumbers.add(Integer.parseInt(tempString));

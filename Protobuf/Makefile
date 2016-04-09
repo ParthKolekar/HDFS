@@ -1,7 +1,8 @@
-.PHONY : clean all
+HDFSProtobuf.class : HDFSProtobuf.java
+	 javac -classpath ..:/usr/share/java/protobuf.jar HDFSProtobuf.java
 
 HDFSProtobuf.java : HDFS.proto
 	protoc --java_out=.. HDFS.proto
 
 clean:
-	$(RM) *.class  HDFSProtobuf.java 
+	rm -f *.class  HDFSProtobuf.java 
