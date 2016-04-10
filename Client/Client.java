@@ -7,9 +7,10 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
@@ -45,7 +46,7 @@ public class Client {
 
 	private static void get(String fileName) throws NotBoundException, IOException {
 
-		INameNode nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
+		INameNode nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
 
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(fileName).setForRead(true).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {
@@ -63,7 +64,7 @@ public class Client {
 
 		for (BlockLocations tempBlockLocations : blockLocationResponse.getBlockLocationsList()) {
 			DataNodeLocation location = tempBlockLocations.getLocations(0);
-			ReadBlockResponse readBlockResponse = ReadBlockResponse.parseFrom(((IDataNode) Naming.lookup("rmi://" + location.getIP() + ":" + location.getPort() + "/" + "DataNode")).readBlock(ReadBlockRequest.newBuilder().setBlockNumber(tempBlockLocations.getBlockNumber()).build().toByteArray()));
+			ReadBlockResponse readBlockResponse = ReadBlockResponse.parseFrom(((IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode")).readBlock(ReadBlockRequest.newBuilder().setBlockNumber(tempBlockLocations.getBlockNumber()).build().toByteArray()));
 			if (readBlockResponse.getStatus() == 0) {
 				System.err.println("Error in ReadBlockRequest...");
 				return;
@@ -83,7 +84,7 @@ public class Client {
 
 	private static void list() throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
 
-		INameNode nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
+		INameNode nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
 
 		ListFilesResponse listFilesResponse = ListFilesResponse.parseFrom(nameNode.list(ListFilesRequest.newBuilder().build().toByteArray()));
 		if (listFilesResponse.getStatus() == 0) {
@@ -176,7 +177,7 @@ public class Client {
 
 	private static void put(String fileName) throws NotBoundException, IOException {
 
-		INameNode nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
+		INameNode nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
 
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(fileName).setForRead(false).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {
@@ -197,7 +198,7 @@ public class Client {
 		List<DataNodeLocation> dataNodeLocations = blockLocations.getLocationsList();
 		DataNodeLocation location = dataNodeLocations.get(0);
 
-		IDataNode dataNode = (IDataNode) Naming.lookup("rmi://" + location.getIP() + ":" + location.getPort() + "/" + "DataNode");
+		IDataNode dataNode = (IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode");
 
 		WriteBlockResponse writeBlockResponse = WriteBlockResponse.parseFrom(dataNode.writeBlock(WriteBlockRequest.newBuilder().addData(ByteString.copyFrom(Files.readAllBytes(Paths.get(fileName)))).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(0, dataNodeLocations.size()))).build().toByteArray()));
 		if (writeBlockResponse.getStatus() == 0) {
