@@ -152,8 +152,6 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 
 		System.out.println("Loaded NameNode");
 
-		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
-
 		Inet4Address inetAddress = null;
 		try {
 			Enumeration<InetAddress> enumeration = NetworkInterface.getByName(networkInterface).getInetAddresses();
@@ -171,6 +169,8 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			System.exit(-1);
 		}
 
+		System.setProperty("java.rmi.server.hostname", inetAddress.getHostAddress());
+		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 		LocateRegistry.getRegistry(inetAddress.getHostAddress(), Registry.REGISTRY_PORT).rebind("NameNode", new NameNode());
 	}
 

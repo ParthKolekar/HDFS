@@ -182,8 +182,6 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			}
 		}).start();
 
-		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
-
 		Inet4Address inetAddress = null;
 		try {
 			Enumeration<InetAddress> enumeration = NetworkInterface.getByName(networkInterface).getInetAddresses();
@@ -201,6 +199,8 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			System.exit(-1);
 		}
 
+		System.setProperty("java.rmi.server.hostname", inetAddress.getHostAddress());
+		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 		LocateRegistry.getRegistry(inetAddress.getHostAddress(), Registry.REGISTRY_PORT).rebind("DataNode", new DataNode());
 	}
 
