@@ -1,6 +1,7 @@
 package Client;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -179,7 +180,19 @@ public class Client {
 
 		INameNode nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
 
-		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(fileName).setForRead(false).build().toByteArray()));
+		File file = new File(fileName);
+
+		if (!file.exists()) {
+			System.err.println("No Such File " + fileName);
+			return;
+		}
+
+		if (!file.canRead()) {
+			System.err.println("Can't read File " + fileName);
+			return;
+		}
+
+		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(file.getName()).setForRead(false).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {
 			System.err.println("Error in OpenFileRequest...");
 			return;

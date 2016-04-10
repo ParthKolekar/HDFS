@@ -16,6 +16,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.ExportException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Enumeration;
 import java.util.List;
@@ -200,7 +201,11 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 		}
 
 		System.setProperty("java.rmi.server.hostname", inetAddress.getHostAddress());
-		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
+		try {
+			LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
+		} catch (ExportException e) {
+			// nope
+		}
 		LocateRegistry.getRegistry(inetAddress.getHostAddress(), Registry.REGISTRY_PORT).rebind("DataNode", new DataNode());
 	}
 
