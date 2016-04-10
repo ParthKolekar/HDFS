@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -143,6 +145,8 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 		}));
 
 		System.out.println("Loaded NameNode");
+
+		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 
 		Naming.rebind("NameNode", new NameNode());
 	}
