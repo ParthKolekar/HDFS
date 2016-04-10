@@ -192,6 +192,11 @@ public class Client {
 			return;
 		}
 
+		if (file.isDirectory()) {
+			System.err.println("Is A Directory... " + fileName);
+			return;
+		}
+
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(file.getName()).setForRead(false).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {
 			System.err.println("Error in OpenFileRequest...");
