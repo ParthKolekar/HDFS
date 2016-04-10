@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Inet4Address;
 import java.net.InetAddress;
-import java.net.MalformedURLException;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.nio.file.Files;
@@ -83,8 +82,8 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 					heartBeatRequest.setId(serverID);
 					INameNode nameNode = null;
 					try {
-						nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
-					} catch (MalformedURLException | RemoteException | NotBoundException e) {
+						nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation).lookup("NameNode");
+					} catch (RemoteException | NotBoundException e) {
 						e.printStackTrace();
 					}
 					byte[] serializedHeartBeatResponse = null;
@@ -153,8 +152,8 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 					}
 					INameNode nameNode = null;
 					try {
-						nameNode = (INameNode) Naming.lookup(nameNodeLocation + "NameNode");
-					} catch (MalformedURLException | RemoteException | NotBoundException e) {
+						nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation).lookup("NameNode");
+					} catch (RemoteException | NotBoundException e) {
 						e.printStackTrace();
 					}
 					byte[] serializedBlockReportResponse = null;
@@ -213,7 +212,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			Files.write(Paths.get(dataDirectory + "/" + Integer.toString(blockNumber)), ByteString.copyFrom(writeBlockRequest.getDataList()).toByteArray());
 			if (blockLocations.getLocationsCount() > 0) {
 				DataNodeLocation location = blockLocations.getLocations(0);
-				WriteBlockResponse cascadingWriteBlockResponse = WriteBlockResponse.parseFrom(((IDataNode) Naming.lookup("rmi://" + location.getIP() + ":" + location.getPort() + "/" + "DataNode")).writeBlock(WriteBlockRequest.newBuilder().addAllData(writeBlockRequest.getDataList()).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(1, dataNodeLocations.size()))).build().toByteArray()));
+				WriteBlockResponse cascadingWriteBlockResponse = WriteBlockResponse.parseFrom(((IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode")).writeBlock(WriteBlockRequest.newBuilder().addAllData(writeBlockRequest.getDataList()).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(1, dataNodeLocations.size()))).build().toByteArray()));
 				if (cascadingWriteBlockResponse.getStatus() == 0) {
 					System.err.println("Unable to Cascade Write Requests...");
 					return WriteBlockResponse.newBuilder().setStatus(0).build().toByteArray();
