@@ -204,7 +204,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 		try {
 			LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 		} catch (ExportException e) {
-			// nope
+			System.err.println("Using existing registry...");
 		}
 		LocateRegistry.getRegistry(inetAddress.getHostAddress(), Registry.REGISTRY_PORT).rebind("DataNode", new DataNode());
 	}
