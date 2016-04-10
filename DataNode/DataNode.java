@@ -12,7 +12,6 @@ import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.rmi.AlreadyBoundException;
-import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -185,7 +184,24 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 
 		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 
-		Naming.rebind("DataNode", new DataNode());
+		Inet4Address inetAddress = null;
+		try {
+			Enumeration<InetAddress> enumeration = NetworkInterface.getByName(networkInterface).getInetAddresses();
+			while (enumeration.hasMoreElements()) {
+				InetAddress tempInetAddress = enumeration.nextElement();
+				if (tempInetAddress instanceof Inet4Address) {
+					inetAddress = (Inet4Address) tempInetAddress;
+				}
+			}
+		} catch (SocketException e) {
+			e.printStackTrace();
+		}
+		if (inetAddress == null) {
+			System.err.println("Error Obtaining Network Information");
+			System.exit(-1);
+		}
+
+		LocateRegistry.getRegistry(inetAddress.getHostAddress(), Registry.REGISTRY_PORT).rebind("DataNode", new DataNode());
 	}
 
 	public DataNode() throws RemoteException {

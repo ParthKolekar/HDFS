@@ -8,12 +8,16 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.rmi.Naming;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
@@ -50,6 +54,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 	private static File dataFile;
 	private static Integer commitTimeout;
 	private static Integer handleID = 0;
+	private static String networkInterface;
 
 	private static void commitData() throws IOException {
 		StringBuilder stringBuilder = new StringBuilder();
@@ -105,6 +110,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 
 		dataFile = new File(properties.getProperty("Data File"));
 		commitTimeout = Integer.parseInt(properties.getProperty("Commit Timeout"));
+		networkInterface = properties.getProperty("Network Interface");
 
 		if ((dataFile == null) || (commitTimeout == null)) {
 			System.out.println("Configuration Missing...");
@@ -148,7 +154,24 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 
 		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 
-		Naming.rebind("NameNode", new NameNode());
+		Inet4Address inetAddress = null;
+		try {
+			Enumeration<InetAddress> enumeration = NetworkInterface.getByName(networkInterface).getInetAddresses();
+			while (enumeration.hasMoreElements()) {
+				InetAddress tempInetAddress = enumeration.nextElement();
+				if (tempInetAddress instanceof Inet4Address) {
+					inetAddress = (Inet4Address) tempInetAddress;
+				}
+			}
+		} catch (SocketException e) {
+			e.printStackTrace();
+		}
+		if (inetAddress == null) {
+			System.err.println("Error Obtaining Network Information");
+			System.exit(-1);
+		}
+
+		LocateRegistry.getRegistry(inetAddress.getHostAddress(), Registry.REGISTRY_PORT).rebind("NameNode", new NameNode());
 	}
 
 	public NameNode() throws RemoteException {
