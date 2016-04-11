@@ -1,17 +1,18 @@
 package Client;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
@@ -64,10 +65,18 @@ public class Client {
 		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
 		for (BlockLocations tempBlockLocations : blockLocationResponse.getBlockLocationsList()) {
-			DataNodeLocation location = tempBlockLocations.getLocations(0);
-			ReadBlockResponse readBlockResponse = ReadBlockResponse.parseFrom(((IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode")).readBlock(ReadBlockRequest.newBuilder().setBlockNumber(tempBlockLocations.getBlockNumber()).build().toByteArray()));
+			ReadBlockResponse readBlockResponse = null;
+			for (DataNodeLocation location : tempBlockLocations.getLocationsList()) {
+				readBlockResponse = ReadBlockResponse.parseFrom(((IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode")).readBlock(ReadBlockRequest.newBuilder().setBlockNumber(tempBlockLocations.getBlockNumber()).build().toByteArray()));
+				if (readBlockResponse.getStatus() == 0) {
+					System.err.println("Error in ReadBlockRequest... Trying next...");
+					continue;
+				} else {
+					break;
+				}
+			}
 			if (readBlockResponse.getStatus() == 0) {
-				System.err.println("Error in ReadBlockRequest...");
+				System.err.println("No more DataNodes... Failing...");
 				return;
 			}
 			byteArrayOutputStream.write(ByteString.copyFrom(readBlockResponse.getDataList()).toByteArray());
@@ -180,48 +189,53 @@ public class Client {
 
 		INameNode nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
 
-		File file = new File(fileName);
+		Path path = Paths.get(fileName);
 
-		if (!file.exists()) {
+		if (!Files.exists(path)) {
 			System.err.println("No Such File " + fileName);
 			return;
 		}
 
-		if (!file.canRead()) {
+		if (!Files.isReadable(path)) {
 			System.err.println("Can't read File " + fileName);
 			return;
 		}
 
-		if (file.isDirectory()) {
+		if (Files.isDirectory(path)) {
 			System.err.println("Is A Directory... " + fileName);
 			return;
 		}
 
-		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(file.getName()).setForRead(false).build().toByteArray()));
+		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(path.getFileName().toString()).setForRead(false).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {
 			System.err.println("Error in OpenFileRequest...");
 			return;
 		}
 
 		Integer handle = openFileResponse.getHandle();
+		InputStream inputStream = Files.newInputStream(path);
+		byte[] byteBuffer = new byte[32000000];
+		Integer bytesRead;
 
-		AssignBlockResponse assignBlockResponse = AssignBlockResponse.parseFrom(nameNode.assignBlock(AssignBlockRequest.newBuilder().setHandle(handle).build().toByteArray()));
-		if (assignBlockResponse.getStatus() == 0) {
-			System.err.println("Error in AssignBlockRequest...");
-			return;
-		}
+		while ((bytesRead = inputStream.read(byteBuffer)) != -1) {
+			AssignBlockResponse assignBlockResponse = AssignBlockResponse.parseFrom(nameNode.assignBlock(AssignBlockRequest.newBuilder().setHandle(handle).build().toByteArray()));
+			if (assignBlockResponse.getStatus() == 0) {
+				System.err.println("Error in AssignBlockRequest...");
+				return;
+			}
 
-		BlockLocations blockLocations = assignBlockResponse.getNewBlock();
-		Integer blockNumber = blockLocations.getBlockNumber();
-		List<DataNodeLocation> dataNodeLocations = blockLocations.getLocationsList();
-		DataNodeLocation location = dataNodeLocations.get(0);
+			BlockLocations blockLocations = assignBlockResponse.getNewBlock();
+			Integer blockNumber = blockLocations.getBlockNumber();
+			List<DataNodeLocation> dataNodeLocations = blockLocations.getLocationsList();
+			DataNodeLocation location = dataNodeLocations.get(0);
 
-		IDataNode dataNode = (IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode");
+			IDataNode dataNode = (IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode");
 
-		WriteBlockResponse writeBlockResponse = WriteBlockResponse.parseFrom(dataNode.writeBlock(WriteBlockRequest.newBuilder().addData(ByteString.copyFrom(Files.readAllBytes(Paths.get(fileName)))).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(0, dataNodeLocations.size()))).build().toByteArray()));
-		if (writeBlockResponse.getStatus() == 0) {
-			System.err.println("Error in WriteBlockRequest...");
-			return;
+			WriteBlockResponse writeBlockResponse = WriteBlockResponse.parseFrom(dataNode.writeBlock(WriteBlockRequest.newBuilder().addData(ByteString.copyFrom(bytesRead == 32000000 ? byteBuffer : Arrays.copyOf(byteBuffer, bytesRead))).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(0, dataNodeLocations.size()))).build().toByteArray()));
+			if (writeBlockResponse.getStatus() == 0) {
+				System.err.println("Error in WriteBlockRequest...");
+				return;
+			}
 		}
 
 		CloseFileResponse closeFileResponse = CloseFileResponse.parseFrom(nameNode.closeFile(CloseFileRequest.newBuilder().setHandle(handle).build().toByteArray()));
