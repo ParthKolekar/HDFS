@@ -41,6 +41,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 public class Client {
 
+	private static final Integer blockSize = 32000000;
 	private static final String configurationFile = "Resources/client.properties";
 	private static String commandSeperator = "--";
 	private static Boolean isSingleCommand = false;
@@ -214,7 +215,7 @@ public class Client {
 
 		Integer handle = openFileResponse.getHandle();
 		InputStream inputStream = Files.newInputStream(path);
-		byte[] byteBuffer = new byte[32000000];
+		byte[] byteBuffer = new byte[blockSize];
 		Integer bytesRead;
 
 		while ((bytesRead = inputStream.read(byteBuffer)) != -1) {
@@ -227,7 +228,7 @@ public class Client {
 			List<DataNodeLocation> dataNodeLocations = assignBlockResponse.getNewBlock().getLocationsList();
 			DataNodeLocation location = dataNodeLocations.get(0);
 
-			WriteBlockResponse writeBlockResponse = WriteBlockResponse.parseFrom(((IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode")).writeBlock(WriteBlockRequest.newBuilder().addData(ByteString.copyFrom(bytesRead == 32000000 ? byteBuffer : Arrays.copyOf(byteBuffer, bytesRead))).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(assignBlockResponse.getNewBlock().getBlockNumber()).addAllLocations(dataNodeLocations.subList(0, dataNodeLocations.size()))).build().toByteArray()));
+			WriteBlockResponse writeBlockResponse = WriteBlockResponse.parseFrom(((IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode")).writeBlock(WriteBlockRequest.newBuilder().addData(ByteString.copyFrom(bytesRead == blockSize ? byteBuffer : Arrays.copyOf(byteBuffer, bytesRead))).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(assignBlockResponse.getNewBlock().getBlockNumber()).addAllLocations(dataNodeLocations.subList(0, dataNodeLocations.size()))).build().toByteArray()));
 			if (writeBlockResponse.getStatus() == 0) {
 				System.err.println("Error in WriteBlockRequest...");
 				return;
