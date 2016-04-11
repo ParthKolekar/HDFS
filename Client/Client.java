@@ -224,14 +224,10 @@ public class Client {
 				return;
 			}
 
-			BlockLocations blockLocations = assignBlockResponse.getNewBlock();
-			Integer blockNumber = blockLocations.getBlockNumber();
-			List<DataNodeLocation> dataNodeLocations = blockLocations.getLocationsList();
+			List<DataNodeLocation> dataNodeLocations = assignBlockResponse.getNewBlock().getLocationsList();
 			DataNodeLocation location = dataNodeLocations.get(0);
 
-			IDataNode dataNode = (IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode");
-
-			WriteBlockResponse writeBlockResponse = WriteBlockResponse.parseFrom(dataNode.writeBlock(WriteBlockRequest.newBuilder().addData(ByteString.copyFrom(bytesRead == 32000000 ? byteBuffer : Arrays.copyOf(byteBuffer, bytesRead))).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(blockNumber).addAllLocations(dataNodeLocations.subList(0, dataNodeLocations.size()))).build().toByteArray()));
+			WriteBlockResponse writeBlockResponse = WriteBlockResponse.parseFrom(((IDataNode) LocateRegistry.getRegistry(location.getIP(), location.getPort()).lookup("DataNode")).writeBlock(WriteBlockRequest.newBuilder().addData(ByteString.copyFrom(bytesRead == 32000000 ? byteBuffer : Arrays.copyOf(byteBuffer, bytesRead))).setBlockInfo(BlockLocations.newBuilder().setBlockNumber(assignBlockResponse.getNewBlock().getBlockNumber()).addAllLocations(dataNodeLocations.subList(0, dataNodeLocations.size()))).build().toByteArray()));
 			if (writeBlockResponse.getStatus() == 0) {
 				System.err.println("Error in WriteBlockRequest...");
 				return;
