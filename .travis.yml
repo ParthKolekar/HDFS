@@ -1,0 +1,16 @@
+language: java
+
+addons:
+  apt:
+    packages:
+    - build-essential 
+    - protobuf-compiler 
+    - libprotobuf-java
+
+script:
+    - make 
+
+notifications:
+    email:
+        - parth.kolekar@students.iiit.ac.in
+        - shrenik.jain@research.iiit.ac.in
