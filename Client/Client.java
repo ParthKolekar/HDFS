@@ -38,6 +38,7 @@ import Protobuf.HDFSProtobuf.WriteBlockResponse;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.UnmodifiableLazyStringList;
 
 public class Client {
 
@@ -92,6 +93,23 @@ public class Client {
 		}
 
 	}
+	
+	private static void printFiles(List<String> list) {
+		System.out.print("Files--");
+		boolean counter = true;
+		for ( Object file : list) {
+			if(counter) {
+				System.out.println("|--"+file);
+				counter = false;
+				continue;
+			}
+			System.out.println("       |");
+			System.out.print("       |--");
+			System.out.println(file);
+		}
+	}
+		
+	
 
 	private static void list() throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
 
@@ -102,9 +120,7 @@ public class Client {
 			System.err.println("Error in OpenFileRequest...");
 			return;
 		}
-
-		System.out.println(listFilesResponse.getFileNamesList());
-		// TODO: Prettify
+		printFiles(listFilesResponse.getFileNamesList());
 
 	}
 
