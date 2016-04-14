@@ -57,6 +57,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 	private static String networkInterface;
 
 	private static void commitData() throws IOException {
+
 		StringBuilder stringBuilder = new StringBuilder();
 		for (String tempfileNameString : fileNameHandleMap.keySet()) {
 			stringBuilder.append(tempfileNameString);
@@ -112,7 +113,7 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 		commitTimeout = Integer.parseInt(properties.getProperty("Commit Timeout"));
 		networkInterface = properties.getProperty("Network Interface");
 
-		if ((dataFile == null) || (commitTimeout == null)) {
+		if ((dataFile == null) || (commitTimeout == null) || (networkInterface == null)) {
 			System.out.println("Configuration Missing...");
 			System.exit(-1);
 		}
@@ -150,8 +151,6 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			}
 		}));
 
-		System.out.println("Loaded NameNode");
-
 		Inet4Address inetAddress = null;
 		try {
 			Enumeration<InetAddress> enumeration = NetworkInterface.getByName(networkInterface).getInetAddresses();
@@ -165,13 +164,15 @@ public class NameNode extends UnicastRemoteObject implements INameNode {
 			e.printStackTrace();
 		}
 		if (inetAddress == null) {
-			System.err.println("Error Obtaining Network Information");
+			System.err.println("Error Obtaining Network Information...");
 			System.exit(-1);
 		}
 
 		System.setProperty("java.rmi.server.hostname", inetAddress.getHostAddress());
 		LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 		LocateRegistry.getRegistry(inetAddress.getHostAddress(), Registry.REGISTRY_PORT).rebind("NameNode", new NameNode());
+
+		System.out.println("Loaded NameNode...");
 	}
 
 	public NameNode() throws RemoteException {

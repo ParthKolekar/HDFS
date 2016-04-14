@@ -11,7 +11,6 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -48,7 +47,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 	private static File dataDirectory;
 	private static String nameNodeLocation;
 
-	public static void main(String[] args) throws IOException, AlreadyBoundException {
+	public static void main(String[] args) throws IOException {
 
 		if (args.length != 1) {
 			System.err.println("USAGE: java DataNode <serverID>");
@@ -89,7 +88,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 					byte[] serializedHeartBeatResponse = null;
 					try {
 						serializedHeartBeatResponse = nameNode.heartBeat(heartBeatRequest.build().toByteArray());
-					} catch (RemoteException | InvalidProtocolBufferException e) {
+					} catch (RemoteException e) {
 						e.printStackTrace();
 					}
 					HeartBeatResponse heartBeatResponse = null;
@@ -159,7 +158,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 					byte[] serializedBlockReportResponse = null;
 					try {
 						serializedBlockReportResponse = nameNode.blockReport(blockReportRequest.build().toByteArray());
-					} catch (RemoteException | InvalidProtocolBufferException e) {
+					} catch (RemoteException e) {
 						e.printStackTrace();
 					}
 					BlockReportResponse blockReportResponse = null;
@@ -207,6 +206,8 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			System.err.println("Using existing registry...");
 		}
 		LocateRegistry.getRegistry(inetAddress.getHostAddress(), Registry.REGISTRY_PORT).rebind("DataNode", new DataNode());
+
+		System.out.println("Loaded DataNode...");
 	}
 
 	public DataNode() throws RemoteException {

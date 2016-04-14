@@ -1,0 +1,80 @@
+option java_package = 'Protobuf';
+option java_outer_classname = "MapReduceProtobuf";
+
+message JobSubmitRequest {
+  optional string mapperName = 1; // Java class, or name of C .so
+  optional string reducerName = 2; // Java class, or name of C .so
+  optional string inputFile = 3;
+  optional string outputFile = 4;
+  optional int32 numReduceTasks = 5;
+}
+
+message JobSubmitResponse {
+  optional int32 status = 1;
+  optional int32 jobId = 2;
+}
+
+message JobStatusRequest {
+  optional int32 jobId = 1;
+}
+
+message JobStatusResponse {
+  optional int32 status = 1;
+  optional bool jobDone = 2;
+  optional int32 totalMapTasks = 3;
+  optional int32 numMapTasksStarted = 4;
+  optional int32 totalReduceTasks = 5;
+  optional int32 numReduceTasksStarted = 6;
+}
+
+message MapTaskStatus {
+  optional int32 jobId = 1;
+  optional int32 taskId = 2;
+  optional bool taskCompleted = 3;
+  optional string mapOutputFile = 4;
+}
+
+message ReduceTaskStatus {
+  optional int32 jobId = 1;
+  optional int32 taskId = 2;
+  optional bool taskCompleted = 3;
+}
+
+message HeartBeatRequest {
+  optional int32 taskTrackerId = 1;
+  optional int32 numMapSlotsFree = 2;
+  optional int32 numReduceSlotsFree = 3;
+  repeated MapTaskStatus mapStatus = 4;
+  repeated ReduceTaskStatus reduceStatus = 5;
+}
+
+message DataNodeLocation {
+  optional string IP = 1 ;
+  optional int32 port = 2;
+}
+
+message BlockLocations {
+  optional int32 blockNumber = 1;
+  repeated DataNodeLocation locations = 2;
+}
+
+message MapTaskInfo {
+  optional int32 jobId = 1;
+  optional int32 taskId = 2;
+  optional string mapName = 3;
+  repeated BlockLocations inputBlocks = 4;
+}
+
+message ReducerTaskInfo {
+  optional int32 jobId = 1;
+  optional int32 taskId = 2;
+  optional string reducerName = 3;
+  repeated string mapOutputFiles = 4;
+  optional string outputFile = 5;
+}
+
+message HeartBeatResponse {
+  optional int32 status = 1;
+  repeated MapTaskInfo mapTasks = 2;
+  repeated ReducerTaskInfo reduceTasks = 3;
+}
