@@ -5,17 +5,27 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.ExportException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Properties;
 
+import NameNode.INameNode;
+import Protobuf.HDFSProtobuf.BlockLocationRequest;
+import Protobuf.HDFSProtobuf.BlockLocationResponse;
+import Protobuf.HDFSProtobuf.OpenFileRequest;
+import Protobuf.HDFSProtobuf.OpenFileResponse;
+import Protobuf.MapReduceProtobuf.DataNodeLocation;
 import Protobuf.MapReduceProtobuf.HeartBeatRequest;
 import Protobuf.MapReduceProtobuf.HeartBeatResponse;
 import Protobuf.MapReduceProtobuf.JobStatusRequest;
@@ -26,6 +36,40 @@ import Protobuf.MapReduceProtobuf.JobSubmitResponse;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 public class JobTracker extends UnicastRemoteObject implements IJobTracker {
+	
+	private class Task {
+		private Integer blockID;
+		private ArrayList<DataNodeLocation> location;
+		private Integer jobID;
+		private Boolean isDone;
+		Task() {
+			super();
+		}
+		public Integer getBlockId() {
+			return blockID;
+		}
+		public void setBlockId(Integer blockId) {
+			this.blockID = blockId;
+		}
+		public ArrayList<DataNodeLocation> getLocation() {
+			return location;
+		}
+		public void setLocation(ArrayList<DataNodeLocation> location) {
+			this.location = location;
+		}
+		public Integer getJobID() {
+			return jobID;
+		}
+		public void setJobID(Integer jobID) {
+			this.jobID = jobID;
+		}
+		public Boolean getIsDone() {
+			return isDone;
+		}
+		public void setIsDone(Boolean isDone) {
+			this.isDone = isDone;
+		}
+	}
 
 	private class Job {
 		private String reducerName;
@@ -120,14 +164,41 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 	private static final String configurationFile = "Resources/jobtracker.properties";
 	private static String networkInterface;
 	private static HashMap<Integer, Job> jobsList;
-
+	private static HashMap<Integer, Task> tasksList;
 	private static Integer jobID = 0;
+	private static Integer taskID = 0;
+	private static HashMap<Integer, Integer> stagingMap;
+	private static HashMap<Integer, DataNodeLocation> taskTrackerIDDataNodeLocationMap;
 
 	private static Integer getNewJobID() {
 		jobID++;
 		return new Integer(jobID);
 	}
+	
+	private static Integer getNewTaskID() {
+		taskID++;
+		return new Integer(taskID);
+	}
+	
+	private static void createTask(Integer jobId) throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
+		Job job = jobsList.get(jobId);
+		INameNode nameNode = (INameNode)Naming.lookup("NameNode");
+		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(job.getInputFile()).setForRead(true).build().toByteArray()));
+		if (openFileResponse.getStatus() == 0) {
+			System.err.println("Error in OpenFileRequest...");
+			return;
+		}
 
+		BlockLocationResponse blockLocationResponse = BlockLocationResponse.parseFrom(nameNode.getBlockLocations(BlockLocationRequest.newBuilder().addAllBlockNums(openFileResponse.getBlockNumsList()).build().toByteArray()));
+		if (blockLocationResponse.getStatus() == 0) {
+			System.err.println("Error in BlockLocationRequest...");
+			return;
+		}
+//		Job job = new Job();
+		
+
+	}
+	
 	public static void main(String[] args) throws IOException {
 
 		Properties properties = new Properties();

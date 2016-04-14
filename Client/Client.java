@@ -185,19 +185,28 @@ public class Client {
 	}
 
 	private static void printFiles(List<String> list) {
-		System.out.print("Files─┬─");
-		boolean counter = true;
-		for (Object file : list) {
-			if (counter) {
-				System.out.println(file);
-				counter = false;
-				continue;
+		if(list.size() == 0) {
+			System.out.println("Files──[NULL]");
+			return;
+		} else if(list.size() == 1) {
+			System.out.println("Files──"+list.get(0));
+		} else if(list.size() == 2) {
+			System.out.print("Files─┬─"+list.get(0));
+			System.out.println("      │");
+			System.out.println("      └─" + list.get(1));
+		} else {
+			System.out.println("Files─┬─"+list.get(0));
+			for (Integer i = 1; i<list.size()-1; i++) {
+				System.out.println("      │");
+				System.out.print("      ├─");
+				System.out.println(list.get(i));
 			}
 			System.out.println("      │");
-			System.out.print("      ├─");
-			System.out.println("└─" + file);
+			System.out.println("      └─" + list.get(list.size()-1));
 		}
+		
 	}
+	
 
 	private static void put(String fileName) throws NotBoundException, IOException {
 
