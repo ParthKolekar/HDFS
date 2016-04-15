@@ -54,6 +54,7 @@ public class TaskTracker extends UnicastRemoteObject {
 	private static final long serialVersionUID = 1L;
 	private static final String configurationFile = "Resources/tasktracker.properties";
 	private static Integer exitTimeout;
+
 	private static String networkInterface;
 
 	private static ThreadPoolExecutor executor;
