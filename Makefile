@@ -5,11 +5,15 @@ all : Protobuf Client DataNode NameNode
 	make -C Client
 	make -C DataNode
 	make -C NameNode
+	make -C TaskTracker
+	make -C JobTracker
 
 clean : 
 	make -C Client clean
 	make -C DataNode clean 
 	make -C NameNode clean
+	make -C TaskTracker clean
+	make -C JobTracker clean
 	make -C Protobuf clean
 
 Client : 
@@ -21,5 +25,12 @@ DataNode :
 NameNode : 
 	make -C NameNode
 
+TaskTracker :
+	make -C TaskTracker
+
+JobTracker :
+	make -C JobTracker
+
 Protobuf :
 	make -C Protobuf
+

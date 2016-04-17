@@ -11,8 +11,8 @@ then
 fi
 
 make -sC Protobuf
-make -sC DataNode
+make -sC TaskTracker
 
 ID="$1"
 
-java -classpath .:/usr/share/java/protobuf.jar DataNode.DataNode $ID 
+java -classpath .:/usr/share/java/protobuf.jar TaskTracker.TaskTracker $ID 
