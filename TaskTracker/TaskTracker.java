@@ -12,6 +12,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -54,6 +55,9 @@ public class TaskTracker extends UnicastRemoteObject {
 	private static final long serialVersionUID = 1L;
 	private static final String configurationFile = "Resources/tasktracker.properties";
 	private static Integer exitTimeout;
+	private static HashMap<Integer, Integer> taskIDJobIDMap;
+	private static HashMap<Integer, Boolean> taskIDIsDoneMap;
+	private static HashMap<Integer, String> taskIDMapOutputFileMap;
 
 	private static String networkInterface;
 

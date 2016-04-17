@@ -18,6 +18,7 @@ import java.util.Properties;
 import java.util.Scanner;
 
 import DataNode.IDataNode;
+import JobTracker.IJobTracker;
 import NameNode.INameNode;
 import Protobuf.HDFSProtobuf.AssignBlockRequest;
 import Protobuf.HDFSProtobuf.AssignBlockResponse;
@@ -35,6 +36,10 @@ import Protobuf.HDFSProtobuf.ReadBlockRequest;
 import Protobuf.HDFSProtobuf.ReadBlockResponse;
 import Protobuf.HDFSProtobuf.WriteBlockRequest;
 import Protobuf.HDFSProtobuf.WriteBlockResponse;
+import Protobuf.MapReduceProtobuf.JobStatusRequest;
+import Protobuf.MapReduceProtobuf.JobStatusResponse;
+import Protobuf.MapReduceProtobuf.JobSubmitRequest;
+import Protobuf.MapReduceProtobuf.JobSubmitResponse;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -42,14 +47,15 @@ import com.google.protobuf.InvalidProtocolBufferException;
 public class Client {
 
 	private static final Integer blockSize = 32000000;
+	private static Integer pollingInterval;
 	private static final String configurationFile = "Resources/client.properties";
 	private static String commandSeperator = "--";
 	private static Boolean isSingleCommand = false;
 	private static String nameNodeLocation;
+	private static INameNode nameNode;
+	private static String jobTrackerLocation;
 
 	private static void get(String fileName) throws NotBoundException, IOException {
-
-		INameNode nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
 
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(fileName).setForRead(true).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {
@@ -95,8 +101,6 @@ public class Client {
 
 	private static void list() throws MalformedURLException, RemoteException, NotBoundException, InvalidProtocolBufferException {
 
-		INameNode nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
-
 		ListFilesResponse listFilesResponse = ListFilesResponse.parseFrom(nameNode.list(ListFilesRequest.newBuilder().build().toByteArray()));
 		if (listFilesResponse.getStatus() == 0) {
 			System.err.println("Error in OpenFileRequest...");
@@ -113,11 +117,20 @@ public class Client {
 		properties.load(inputStream);
 
 		nameNodeLocation = properties.getProperty("NameNode Location");
+		jobTrackerLocation = properties.getProperty("JobTracker Location");
+
+		try {
+			pollingInterval = Integer.parseInt(properties.getProperty("Polling Interval"));
+		} catch (NumberFormatException e) {
+			pollingInterval = null;
+		}
 
 		if (nameNodeLocation == null) {
 			System.out.println("Configuration Missing...");
 			System.exit(-1);
 		}
+
+		nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
 
 		for (String temp : args) {
 			if (temp.equals(commandSeperator)) {
@@ -140,6 +153,9 @@ public class Client {
 			}
 			parseCommand(stringBuilder.toString().trim());
 		} else {
+			if (args.length == 5) {
+				parseMapReduceOrFail(args);
+			}
 			String command = new String();
 			while (!command.equals("exit")) {
 				System.out.print(">>> ");
@@ -184,6 +200,54 @@ public class Client {
 
 	}
 
+	private static void parseMapReduceOrFail(String[] args) throws RemoteException, InvalidProtocolBufferException, NotBoundException {
+		String inputFile = args[2];
+		List<String> filenames = ListFilesResponse.parseFrom(nameNode.list(ListFilesRequest.newBuilder().build().toByteArray())).getFileNamesList();
+
+		if (!filenames.contains(inputFile)) {
+			System.out.println("Configuration Missing...");
+			return;
+		}
+
+		if ((jobTrackerLocation == null) || (pollingInterval == null)) {
+			System.out.println("Configuration Missing...");
+			System.exit(-1);
+		}
+
+		IJobTracker jobTracker = (IJobTracker) LocateRegistry.getRegistry(jobTrackerLocation, Registry.REGISTRY_PORT).lookup("JobTracker");
+
+		JobSubmitResponse jobSubmitResponse = JobSubmitResponse.parseFrom(jobTracker.jobSubmit(JobSubmitRequest.newBuilder().setMapperName(args[0]).setReducerName(args[1]).setInputFile(inputFile).setOutputFile(args[3]).setNumReduceTasks(Integer.parseInt(args[4])).build().toByteArray()));
+		if (jobSubmitResponse.getStatus() == 0) {
+			System.err.println("Error in JobSubmitRequest");
+			System.exit(-1);
+		}
+
+		Integer jobID = jobSubmitResponse.getJobId();
+
+		JobStatusResponse jobStatusResponse = JobStatusResponse.parseFrom(jobTracker.getJobStatus(JobStatusRequest.newBuilder().setJobId(jobID).build().toByteArray()));
+		if (jobStatusResponse.getStatus() == 0) {
+			System.err.println("Error in JobStatusRequest");
+			System.exit(-1);
+		}
+
+		while (jobStatusResponse.getJobDone() != true) {
+			jobStatusResponse = JobStatusResponse.parseFrom(jobTracker.getJobStatus(JobStatusRequest.newBuilder().setJobId(jobID).build().toByteArray()));
+			if (jobStatusResponse.getStatus() == 0) {
+				System.err.println("Error in JobStatusRequest");
+				System.exit(-1);
+			}
+
+			System.out.println("Map: " + Integer.toString(jobStatusResponse.getNumMapTasksStarted()) + "/" + Integer.toString(jobStatusResponse.getTotalMapTasks()));
+			System.out.println("Reduce: " + Integer.toString(jobStatusResponse.getNumReduceTasksStarted()) + "/" + Integer.toString(jobStatusResponse.getTotalReduceTasks()));
+
+			try {
+				Thread.sleep(pollingInterval);
+			} catch (InterruptedException e) {
+				// nope
+			}
+		}
+	}
+
 	private static void printFiles(List<String> list) {
 		if (list.size() == 0) {
 			System.out.println("Files──[NULL]");
@@ -206,7 +270,7 @@ public class Client {
 
 	private static void put(String fileName) throws NotBoundException, IOException {
 
-		INameNode nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
+		nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation, Registry.REGISTRY_PORT).lookup("NameNode");
 
 		Path path = Paths.get(fileName);
 

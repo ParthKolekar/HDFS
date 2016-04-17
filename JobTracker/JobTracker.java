@@ -16,6 +16,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import NameNode.INameNode;
 import Protobuf.HDFSProtobuf.BlockLocationRequest;
@@ -23,7 +24,6 @@ import Protobuf.HDFSProtobuf.BlockLocationResponse;
 import Protobuf.HDFSProtobuf.OpenFileRequest;
 import Protobuf.HDFSProtobuf.OpenFileResponse;
 import Protobuf.MapReduceProtobuf.BlockLocations;
-import Protobuf.MapReduceProtobuf.DataNodeLocation;
 import Protobuf.MapReduceProtobuf.HeartBeatRequest;
 import Protobuf.MapReduceProtobuf.HeartBeatResponse;
 import Protobuf.MapReduceProtobuf.JobStatusRequest;
@@ -31,6 +31,7 @@ import Protobuf.MapReduceProtobuf.JobStatusResponse;
 import Protobuf.MapReduceProtobuf.JobSubmitRequest;
 import Protobuf.MapReduceProtobuf.JobSubmitResponse;
 import Protobuf.MapReduceProtobuf.MapTaskInfo;
+import Protobuf.MapReduceProtobuf.MapTaskStatus;
 import Protobuf.MapReduceProtobuf.ReducerTaskInfo;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -42,14 +43,13 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 	private static final String configurationFile = "Resources/jobtracker.properties";
 	private static String networkInterface;
 	private static HashMap<Integer, Job> jobList;
-	private static HashMap<Integer, MapTaskInfo> mapTaskList;
-	private static HashMap<Integer, ReducerTaskInfo> reduceTaskList;
-	private static HashMap<Integer, DataNodeLocation> taskTrackerIDDataNodeLocationMap;
+	private static ConcurrentLinkedQueue<MapTaskInfo> mapTaskList;
+	private static ConcurrentLinkedQueue<ReducerTaskInfo> reduceTaskList;
 	private static Integer jobID = 0;
 	private static Integer taskID = 0;
 	private static INameNode nameNode;
 
-	private static void createTask(Integer jobId) throws InvalidProtocolBufferException, RemoteException {
+	private static void createMapTask(Integer jobId) throws InvalidProtocolBufferException, RemoteException {
 		Job job = jobList.get(jobId);
 
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(nameNode.openFile(OpenFileRequest.newBuilder().setFileName(job.getInputFile()).setForRead(true).build().toByteArray()));
@@ -69,8 +69,10 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 			MapTaskInfo.Builder mapTaskInfo = MapTaskInfo.newBuilder();
 			mapTaskInfo.setJobId(jobID).setTaskId(taskID).setMapName(job.getMapperName());
 			mapTaskInfo.addInputBlocks(BlockLocations.parseFrom(tempBlockLocations.toByteArray()));
-			mapTaskList.put(taskID, mapTaskInfo.build());
+			mapTaskList.add(mapTaskInfo.build());
 		}
+
+		job.setTotalMappers(blockLocationResponse.getBlockLocationsCount());
 	}
 
 	private static Integer getNewJobID() {
@@ -91,6 +93,10 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 
 		networkInterface = properties.getProperty("Network Interface");
 		nameNode = (INameNode) LocateRegistry.getRegistry(properties.getProperty("NameNode Location"), Registry.REGISTRY_PORT).lookup("NameNode");
+
+		mapTaskList = new ConcurrentLinkedQueue<MapTaskInfo>();
+		reduceTaskList = new ConcurrentLinkedQueue<ReducerTaskInfo>();
+		jobList = new HashMap<Integer, Job>();
 
 		if ((networkInterface == null) || (nameNode == null)) {
 			System.out.println("Configuration Missing...");
@@ -144,13 +150,27 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 	public byte[] heartBeat(byte[] serializedHeartBeatRequest) {
 		try {
 			HeartBeatRequest heartBeatRequest = HeartBeatRequest.parseFrom(serializedHeartBeatRequest);
+
+			for (MapTaskStatus tempMapTaskStatus : heartBeatRequest.getMapStatusList()) {
+				if (tempMapTaskStatus.getTaskCompleted() == false) {
+					continue;
+				}
+				Job job = jobList.get(tempMapTaskStatus.getJobId());
+				job.addMapOutputFile(tempMapTaskStatus.getMapOutputFile());
+			}
+
+			HeartBeatResponse.Builder heartBeatResponse = HeartBeatResponse.newBuilder();
 			Integer mapSlotsFree = heartBeatRequest.getNumMapSlotsFree();
 			Integer reduceSlotsFree = heartBeatRequest.getNumReduceSlotsFree();
 
 			for (Integer tempInteger = 0; tempInteger < mapSlotsFree; tempInteger++) {
-
+				MapTaskInfo mapTask = mapTaskList.poll();
+				if (mapTask == null) {
+					break;
+				}
+				heartBeatResponse.addMapTasks(mapTask);
 			}
-
+			return heartBeatResponse.build().toByteArray();
 		} catch (InvalidProtocolBufferException e) {
 			e.printStackTrace();
 			return HeartBeatResponse.newBuilder().setStatus(0).build().toByteArray();
@@ -169,7 +189,7 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 			job.setOutputFile(jobSubmitRequest.getOutputFile());
 			job.setTotalReducers(jobSubmitRequest.getNumReduceTasks());
 			jobList.put(jobID, job);
-			createTask(jobID);
+			createMapTask(jobID);
 			return JobSubmitResponse.newBuilder().setStatus(1).setJobId(jobID).build().toByteArray();
 		} catch (InvalidProtocolBufferException | RemoteException e) {
 			e.printStackTrace();

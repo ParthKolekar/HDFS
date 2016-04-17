@@ -1,5 +1,7 @@
 package JobTracker;
 
+import java.util.ArrayList;
+
 public class Job {
 
 	private String reducerName;
@@ -11,6 +13,7 @@ public class Job {
 	private Integer mapTasksStarted;
 	private Integer reduceTasksStarted;
 	private Boolean isDone;
+	private ArrayList<String> mapOutputFile;
 
 	public Job() {
 		super();
@@ -23,6 +26,11 @@ public class Job {
 		this.setMapTasksStarted(0);
 		this.setReduceTasksStarted(0);
 		this.setIsDone(false);
+		this.setMapOutputFile(new ArrayList<String>());
+	}
+
+	public void addMapOutputFile(String string) {
+		this.mapOutputFile.add(string);
 	}
 
 	public String getInputFile() {
@@ -31,6 +39,10 @@ public class Job {
 
 	public Boolean getIsDone() {
 		return this.isDone;
+	}
+
+	public ArrayList<String> getMapOutputFile() {
+		return this.mapOutputFile;
 	}
 
 	public String getMapperName() {
@@ -67,6 +79,10 @@ public class Job {
 
 	public void setIsDone(Boolean isDone) {
 		this.isDone = isDone;
+	}
+
+	public void setMapOutputFile(ArrayList<String> mapOutputFile) {
+		this.mapOutputFile = mapOutputFile;
 	}
 
 	public void setMapperName(String mapperName) {
