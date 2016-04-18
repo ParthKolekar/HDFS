@@ -50,7 +50,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 	public static void main(String[] args) throws IOException {
 
 		if (args.length != 1) {
-			System.err.println("USAGE: java DataNode <serverID>");
+			System.err.println("USAGE: java DataNode.DataNode <serverID>");
 			System.exit(-1);
 		}
 

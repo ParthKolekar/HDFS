@@ -31,6 +31,7 @@ public class Job {
 
 	public void addMapOutputFile(String string) {
 		this.mapOutputFile.add(string);
+		this.mapTasksStarted++;
 	}
 
 	public String getInputFile() {

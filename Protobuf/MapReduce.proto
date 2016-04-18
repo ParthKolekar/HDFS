@@ -30,14 +30,14 @@ message JobStatusResponse {
 message MapTaskStatus {
   optional int32 jobId = 1;
   optional int32 taskId = 2;
-  optional bool taskCompleted = 3;
+  optional bool taskCompleted = 3 [default=false];
   optional string mapOutputFile = 4;
 }
 
 message ReduceTaskStatus {
   optional int32 jobId = 1;
   optional int32 taskId = 2;
-  optional bool taskCompleted = 3;
+  optional bool taskCompleted = 3 [default=false];
 }
 
 message HeartBeatRequest {
@@ -65,7 +65,7 @@ message MapTaskInfo {
   repeated BlockLocations inputBlocks = 4;
 }
 
-message ReducerTaskInfo {
+message ReduceTaskInfo {
   optional int32 jobId = 1;
   optional int32 taskId = 2;
   optional string reducerName = 3;
@@ -76,5 +76,5 @@ message ReducerTaskInfo {
 message HeartBeatResponse {
   optional int32 status = 1;
   repeated MapTaskInfo mapTasks = 2;
-  repeated ReducerTaskInfo reduceTasks = 3;
+  repeated ReduceTaskInfo reduceTasks = 3;
 }

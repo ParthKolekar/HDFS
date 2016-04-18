@@ -32,7 +32,7 @@ import Protobuf.MapReduceProtobuf.JobSubmitRequest;
 import Protobuf.MapReduceProtobuf.JobSubmitResponse;
 import Protobuf.MapReduceProtobuf.MapTaskInfo;
 import Protobuf.MapReduceProtobuf.MapTaskStatus;
-import Protobuf.MapReduceProtobuf.ReducerTaskInfo;
+import Protobuf.MapReduceProtobuf.ReduceTaskInfo;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -44,7 +44,7 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 	private static String networkInterface;
 	private static HashMap<Integer, Job> jobList;
 	private static ConcurrentLinkedQueue<MapTaskInfo> mapTaskList;
-	private static ConcurrentLinkedQueue<ReducerTaskInfo> reduceTaskList;
+	private static ConcurrentLinkedQueue<ReduceTaskInfo> reduceTaskList;
 	private static Integer jobID = 0;
 	private static Integer taskID = 0;
 	private static INameNode nameNode;
@@ -95,7 +95,7 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 		nameNode = (INameNode) LocateRegistry.getRegistry(properties.getProperty("NameNode Location"), Registry.REGISTRY_PORT).lookup("NameNode");
 
 		mapTaskList = new ConcurrentLinkedQueue<MapTaskInfo>();
-		reduceTaskList = new ConcurrentLinkedQueue<ReducerTaskInfo>();
+		reduceTaskList = new ConcurrentLinkedQueue<ReduceTaskInfo>();
 		jobList = new HashMap<Integer, Job>();
 
 		if ((networkInterface == null) || (nameNode == null)) {
@@ -135,6 +135,11 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 		super();
 	}
 
+	private void createReduceTask(Integer jobID) {
+		Job job = jobList.get(jobID);
+		System.out.println("Reached Job");
+	}
+
 	@Override
 	public byte[] getJobStatus(byte[] serializedJobStatusRequest) {
 		try {
@@ -155,8 +160,13 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 				if (tempMapTaskStatus.getTaskCompleted() == false) {
 					continue;
 				}
-				Job job = jobList.get(tempMapTaskStatus.getJobId());
+				Integer jobID = tempMapTaskStatus.getJobId();
+				Job job = jobList.get(jobID);
 				job.addMapOutputFile(tempMapTaskStatus.getMapOutputFile());
+
+				if (job.getMapTasksStarted() == job.getTotalMappers()) {
+					this.createReduceTask(jobID);
+				}
 			}
 
 			HeartBeatResponse.Builder heartBeatResponse = HeartBeatResponse.newBuilder();
@@ -170,7 +180,16 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 				}
 				heartBeatResponse.addMapTasks(mapTask);
 			}
-			return heartBeatResponse.build().toByteArray();
+
+			for (Integer tempInteger = 0; tempInteger < reduceSlotsFree; tempInteger++) {
+				ReduceTaskInfo reduceTask = reduceTaskList.poll();
+				if (reduceTask == null) {
+					break;
+				}
+				heartBeatResponse.addReduceTasks(reduceTask);
+			}
+
+			return heartBeatResponse.setStatus(1).build().toByteArray();
 		} catch (InvalidProtocolBufferException e) {
 			e.printStackTrace();
 			return HeartBeatResponse.newBuilder().setStatus(0).build().toByteArray();

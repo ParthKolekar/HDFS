@@ -205,7 +205,7 @@ public class Client {
 		List<String> filenames = ListFilesResponse.parseFrom(nameNode.list(ListFilesRequest.newBuilder().build().toByteArray())).getFileNamesList();
 
 		if (!filenames.contains(inputFile)) {
-			System.out.println("Configuration Missing...");
+			System.out.println("No such file...");
 			return;
 		}
 
@@ -246,6 +246,8 @@ public class Client {
 				// nope
 			}
 		}
+
+		System.exit(0);
 	}
 
 	private static void printFiles(List<String> list) {
