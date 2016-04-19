@@ -1,10 +1,14 @@
 package TaskTracker;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -104,8 +108,15 @@ class ReduceTask implements Callable<String[]> {
 		}
 
 		String totalMapOutput = arrayOutputStream.toString();
+		File jarFile = new File(reducerName);
+		Class[] argTypes = { String.class };
+		URLClassLoader child = new URLClassLoader (new URL[] { jarFile.toURI().toURL()}, System.class.getClass().getClassLoader());
+		Class<?> classToLoad = Class.forName ("Reducer", true, child);
+		Method method = classToLoad.getDeclaredMethod ("reduce",argTypes);
+		Object instance = classToLoad.newInstance ();
+		Object result = method.invoke (instance, (Object)totalMapOutput);
 
-		String totalReduceOutput = new String(totalMapOutput);
+		String totalReduceOutput = new String((String) result);
 
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(this.nameNode.openFile(OpenFileRequest.newBuilder().setFileName(this.outputFile).setForRead(false).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {

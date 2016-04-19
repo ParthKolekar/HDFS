@@ -1,10 +1,14 @@
 package TaskTracker;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -12,6 +16,7 @@ import java.rmi.registry.Registry;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Callable;
+import java.util.jar.JarFile;
 
 import DataNode.IDataNode;
 import NameNode.INameNode;
@@ -93,8 +98,15 @@ class MapTask implements Callable<String[]> {
 		arrayOutputStream.write(ByteString.copyFrom(readBlockResponse.getDataList()).toByteArray());
 
 		String mapInput = arrayOutputStream.toString();
+		File jarFile = new File(mapperName);
+		Class[] argTypes = { String.class };
+		URLClassLoader child = new URLClassLoader (new URL[] { jarFile.toURI().toURL()}, System.class.getClass().getClassLoader());
+		Class<?> classToLoad = Class.forName ("Mapper", true, child);
+		Method method = classToLoad.getDeclaredMethod ("map",argTypes);
+		Object instance = classToLoad.newInstance ();
+		Object result = method.invoke (instance, (Object)mapInput);
 
-		String mapOutput = new String(mapInput);
+		String mapOutput = new String((String) result);
 
 		String fileName = "map-" + this.taskID.toString();
 
