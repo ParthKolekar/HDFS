@@ -33,6 +33,7 @@ import Protobuf.MapReduceProtobuf.JobSubmitResponse;
 import Protobuf.MapReduceProtobuf.MapTaskInfo;
 import Protobuf.MapReduceProtobuf.MapTaskStatus;
 import Protobuf.MapReduceProtobuf.ReduceTaskInfo;
+import Protobuf.MapReduceProtobuf.ReduceTaskStatus;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -65,14 +66,16 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 		}
 
 		for (Protobuf.HDFSProtobuf.BlockLocations tempBlockLocations : blockLocationResponse.getBlockLocationsList()) {
-			Integer taskID = getNewTaskID();
-			MapTaskInfo.Builder mapTaskInfo = MapTaskInfo.newBuilder();
-			mapTaskInfo.setJobId(jobID).setTaskId(taskID).setMapName(job.getMapperName());
-			mapTaskInfo.addInputBlocks(BlockLocations.parseFrom(tempBlockLocations.toByteArray()));
-			mapTaskList.add(mapTaskInfo.build());
+			mapTaskList.add(MapTaskInfo.newBuilder().setJobId(jobID).setTaskId(getNewTaskID()).setMapName(job.getMapperName()).addInputBlocks(BlockLocations.parseFrom(tempBlockLocations.toByteArray())).build());
 		}
 
 		job.setTotalMappers(blockLocationResponse.getBlockLocationsCount());
+	}
+
+	private static void createReduceTask(Integer jobID) {
+		Job job = jobList.get(jobID);
+		job.setTotalReducers(1);
+		reduceTaskList.add(ReduceTaskInfo.newBuilder().setJobId(jobID).setTaskId(getNewTaskID()).addAllMapOutputFiles(job.getMapOutputFile()).setReducerName(job.getReducerName()).setOutputFile(job.getOutputFile()).build());
 	}
 
 	private static Integer getNewJobID() {
@@ -135,11 +138,6 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 		super();
 	}
 
-	private void createReduceTask(Integer jobID) {
-		Job job = jobList.get(jobID);
-		System.out.println("Reached Job");
-	}
-
 	@Override
 	public byte[] getJobStatus(byte[] serializedJobStatusRequest) {
 		try {
@@ -162,11 +160,22 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 				}
 				Integer jobID = tempMapTaskStatus.getJobId();
 				Job job = jobList.get(jobID);
+				job.addMapTaskCompleted();
 				job.addMapOutputFile(tempMapTaskStatus.getMapOutputFile());
 
 				if (job.getMapTasksStarted() == job.getTotalMappers()) {
-					this.createReduceTask(jobID);
+					createReduceTask(jobID);
 				}
+			}
+
+			for (ReduceTaskStatus tempReduceTaskStatus : heartBeatRequest.getReduceStatusList()) {
+				if (tempReduceTaskStatus.getTaskCompleted() == false) {
+					continue;
+				}
+				Integer jobID = tempReduceTaskStatus.getJobId();
+				Job job = jobList.get(jobID);
+				job.addReduceTaskCompleted();
+				job.setIsDone(true);
 			}
 
 			HeartBeatResponse.Builder heartBeatResponse = HeartBeatResponse.newBuilder();

@@ -102,7 +102,6 @@ public class TaskTracker extends UnicastRemoteObject {
 				this.mapTaskOutputs = new ArrayList<Future<String[]>>();
 				this.reduceTaskOutputs = new ArrayList<Future<String[]>>();
 				while (true) {
-					System.out.println("woof");
 					ArrayList<MapTaskStatus> localCopyRunningMapTasks = new ArrayList<MapTaskStatus>();
 					for (MapTaskStatus.Builder tempBuilder : runningMapTasks.values()) {
 						localCopyRunningMapTasks.add(tempBuilder.build());
@@ -150,6 +149,8 @@ public class TaskTracker extends UnicastRemoteObject {
 							this.mapTaskOutputs.add(mapOutputFile);
 						}
 
+						System.out.println("Map Task Received");
+
 						runningMapTasks.put(tempMapTask.getTaskId(), tempMapTaskStatus);
 					}
 
@@ -158,14 +159,18 @@ public class TaskTracker extends UnicastRemoteObject {
 						tempReduceTaskStatus.setJobId(tempReduceTask.getJobId());
 						tempReduceTaskStatus.setTaskId(tempReduceTask.getTaskId());
 
-						ReduceTask reduceTask = new ReduceTask(tempReduceTask.getMapOutputFilesList(), tempReduceTask.getReducerName(), tempReduceTask.getTaskId());
+						ReduceTask reduceTask = new ReduceTask(tempReduceTask.getMapOutputFilesList(), tempReduceTask.getReducerName(), tempReduceTask.getOutputFile(), tempReduceTask.getTaskId());
 
 						Future<String[]> finalOutput = executor.submit(reduceTask);
 						this.reduceTaskOutputs.add(finalOutput);
+
+						System.out.println("Reduce Task Received");
+
 						runningReduceTasks.put(tempReduceTask.getTaskId(), tempReduceTaskStatus);
 					}
 
 					Iterator<Future<String[]>> iterator;
+
 					iterator = this.mapTaskOutputs.iterator();
 					while (iterator.hasNext()) {
 						Future<String[]> data = iterator.next();
@@ -196,13 +201,14 @@ public class TaskTracker extends UnicastRemoteObject {
 								e.printStackTrace();
 							}
 							Integer taskID = Integer.parseInt(innerData[0]);
-							String reduceOutputFile = innerData[1];
 							runningReduceTasks.get(taskID).setTaskCompleted(true);
 							iterator.remove();
 						} else {
 							continue;
 						}
 					}
+
+					System.out.println("Woof");
 
 					try {
 						Thread.sleep(heartBeatTimeout);

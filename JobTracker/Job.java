@@ -31,7 +31,14 @@ public class Job {
 
 	public void addMapOutputFile(String string) {
 		this.mapOutputFile.add(string);
+	}
+
+	public void addMapTaskCompleted() {
 		this.mapTasksStarted++;
+	}
+
+	public void addReduceTaskCompleted() {
+		this.reduceTasksStarted++;
 	}
 
 	public String getInputFile() {
