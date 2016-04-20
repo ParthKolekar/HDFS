@@ -1,4 +1,3 @@
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -19,10 +18,10 @@ public class Mapper {
 			Matcher m = r.matcher(line);
 			if (m.find()) {
 				lines.add(line);
+				lines.add(System.lineSeparator());
 			}
 		}
 		System.out.println(lines.toString());
 		return lines.toString();
 	}
-
 }

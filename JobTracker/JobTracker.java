@@ -198,6 +198,8 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 				heartBeatResponse.addReduceTasks(reduceTask);
 			}
 
+			System.out.println("TaskTracker : " + heartBeatRequest.getTaskTrackerId() + " beating...");
+
 			return heartBeatResponse.setStatus(1).build().toByteArray();
 		} catch (InvalidProtocolBufferException e) {
 			e.printStackTrace();
@@ -218,6 +220,13 @@ public class JobTracker extends UnicastRemoteObject implements IJobTracker {
 			job.setTotalReducers(jobSubmitRequest.getNumReduceTasks());
 			jobList.put(jobID, job);
 			createMapTask(jobID);
+
+			System.out.println(jobID + " - Got a new Job");
+			System.out.println(jobID + " - Input - " + job.getInputFile());
+			System.out.println(jobID + " - Output - " + job.getOutputFile());
+			System.out.println(jobID + " - Mapper - " + job.getMapperName());
+			System.out.println(jobID + " - Reducer - " + job.getReducerName());
+
 			return JobSubmitResponse.newBuilder().setStatus(1).setJobId(jobID).build().toByteArray();
 		} catch (InvalidProtocolBufferException | RemoteException e) {
 			e.printStackTrace();

@@ -113,12 +113,18 @@ public class TaskTracker extends UnicastRemoteObject {
 
 					for (MapTaskStatus tempMapTaskStatus : localCopyRunningMapTasks) {
 						if (tempMapTaskStatus.getTaskCompleted() == true) {
+
+							System.out.println("Map Task Completed");
+
 							runningMapTasks.remove(tempMapTaskStatus.getTaskId());
 						}
 					}
 
 					for (ReduceTaskStatus tempReduceTaskStatus : localCopyRunningReduceTasks) {
 						if (tempReduceTaskStatus.getTaskCompleted() == true) {
+
+							System.out.println("Reduce Task Completed");
+
 							runningReduceTasks.remove(tempReduceTaskStatus.getTaskId());
 						}
 					}
@@ -183,7 +189,9 @@ public class TaskTracker extends UnicastRemoteObject {
 							}
 							Integer taskID = Integer.parseInt(innerData[0]);
 							String mapOutputFile = innerData[1];
+
 							runningMapTasks.get(taskID).setTaskCompleted(true).setMapOutputFile(mapOutputFile);
+
 							iterator.remove();
 						} else {
 							continue;
@@ -207,8 +215,6 @@ public class TaskTracker extends UnicastRemoteObject {
 							continue;
 						}
 					}
-
-					System.out.println("Woof");
 
 					try {
 						Thread.sleep(heartBeatTimeout);

@@ -1,6 +1,6 @@
 .PHONY : all
 
-all : Protobuf Client DataNode NameNode
+all : Protobuf Client DataNode NameNode mapred.jar
 	make -C Protobuf
 	make -C Client
 	make -C DataNode
@@ -15,6 +15,7 @@ clean :
 	make -C TaskTracker clean
 	make -C JobTracker clean
 	make -C Protobuf clean
+	rm -f *.class mapred.jar
 
 Client : 
 	make -C Client
@@ -33,4 +34,10 @@ JobTracker :
 
 Protobuf :
 	make -C Protobuf
+
+mapred.jar : Mapper.class Reducer.class
+	jar cvf mapred.jar Mapper.class Reducer.class
+
+%.class : %.java
+	javac -cp .:/usr/share/java/protobuf.jar $^
 
