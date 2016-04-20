@@ -108,13 +108,13 @@ class ReduceTask implements Callable<String[]> {
 		}
 
 		String totalMapOutput = arrayOutputStream.toString();
-		File jarFile = new File(reducerName);
-		Class[] argTypes = { String.class };
-		URLClassLoader child = new URLClassLoader (new URL[] { jarFile.toURI().toURL()}, System.class.getClass().getClassLoader());
-		Class<?> classToLoad = Class.forName ("Reducer", true, child);
-		Method method = classToLoad.getDeclaredMethod ("reduce",argTypes);
-		Object instance = classToLoad.newInstance ();
-		Object result = method.invoke (instance, (Object)totalMapOutput);
+		File jarFile = new File(this.reducerName);
+		Class<?>[] argTypes = { String.class };
+		URLClassLoader child = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, System.class.getClass().getClassLoader());
+		Class<?> classToLoad = Class.forName("Reducer", true, child);
+		Method method = classToLoad.getDeclaredMethod("reduce", argTypes);
+		Object instance = classToLoad.newInstance();
+		Object result = method.invoke(instance, (Object) totalMapOutput);
 
 		String totalReduceOutput = new String((String) result);
 
