@@ -11,8 +11,5 @@ script:
     - make 
 
 dist: trusty
+sudo: required
 
-notifications:
-    email:
-        - parth.kolekar@students.iiit.ac.in
-        - shrenik.jain@research.iiit.ac.in
