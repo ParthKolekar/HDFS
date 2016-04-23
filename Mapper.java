@@ -8,20 +8,17 @@ import java.util.regex.Pattern;
 public class Mapper {
 
 	public String map(String string) throws IOException {
-		String[] splitStr = string.split(System.lineSeparator());
 		ArrayList<String> lines = new ArrayList<String>();
-		String tofind = new String(Files.readAllBytes(Paths.get("Resources/grepword.data")));
-		String pattern = "(.*)(" + tofind + ")(.*)";
+		String pattern = "(.*)(" + new String(Files.readAllBytes(Paths.get("Resources/grepword.data"))) + ")(.*)";
 		Pattern r = Pattern.compile(pattern);
-		for (String line : splitStr) {
+		for (String line : string.split(System.lineSeparator())) {
 			line = line.trim();
+			line.concat(System.lineSeparator());
 			Matcher m = r.matcher(line);
 			if (m.find()) {
 				lines.add(line);
-				lines.add(System.lineSeparator());
 			}
 		}
-		System.out.println(lines.toString());
 		return lines.toString();
 	}
 }

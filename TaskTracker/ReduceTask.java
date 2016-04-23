@@ -6,7 +6,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.rmi.NotBoundException;
@@ -107,16 +106,9 @@ class ReduceTask implements Callable<String[]> {
 			arrayOutputStream.write(ByteString.copyFrom(readBlockResponse.getDataList()).toByteArray());
 		}
 
-		String totalMapOutput = arrayOutputStream.toString();
-		File jarFile = new File(this.reducerName);
 		Class<?>[] argTypes = { String.class };
-		URLClassLoader child = new URLClassLoader(new URL[] { jarFile.toURI().toURL() }, System.class.getClass().getClassLoader());
-		Class<?> classToLoad = Class.forName("Reducer", true, child);
-		Method method = classToLoad.getDeclaredMethod("reduce", argTypes);
-		Object instance = classToLoad.newInstance();
-		Object result = method.invoke(instance, (Object) totalMapOutput);
-
-		String totalReduceOutput = new String((String) result);
+		Class<?> classToLoad = Class.forName("Reducer", true, new URLClassLoader(new URL[] { new File(this.reducerName).toURI().toURL() }, System.class.getClass().getClassLoader()));
+		String totalReduceOutput = new String((String) classToLoad.getDeclaredMethod("reduce", argTypes).invoke(classToLoad.newInstance(), (Object) arrayOutputStream.toString()));
 
 		OpenFileResponse openFileResponse = OpenFileResponse.parseFrom(this.nameNode.openFile(OpenFileRequest.newBuilder().setFileName(this.outputFile).setForRead(false).build().toByteArray()));
 		if (openFileResponse.getStatus() == 0) {

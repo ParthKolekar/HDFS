@@ -7,7 +7,6 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -29,9 +28,8 @@ import Protobuf.MapReduceProtobuf.ReduceTaskStatus;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
-public class TaskTracker extends UnicastRemoteObject {
+public class TaskTracker {
 
-	private static final long serialVersionUID = 1L;
 	private static final String configurationFile = "Resources/tasktracker.properties";
 	private static Integer exitTimeout;
 	private static Integer heartBeatTimeout;
@@ -145,34 +143,21 @@ public class TaskTracker extends UnicastRemoteObject {
 					}
 
 					for (MapTaskInfo tempMapTask : heartbeatResponse.getMapTasksList()) {
-						MapTaskStatus.Builder tempMapTaskStatus = MapTaskStatus.newBuilder();
-						tempMapTaskStatus.setJobId(tempMapTask.getJobId());
-						tempMapTaskStatus.setTaskId(tempMapTask.getTaskId());
-
 						for (BlockLocations tempBlockLocations : tempMapTask.getInputBlocksList()) {
-							MapTask mapTask = new MapTask(tempBlockLocations.getBlockNumber(), tempMapTask.getMapName(), tempMapTask.getTaskId());
-							Future<String[]> mapOutputFile = executor.submit(mapTask);
-							this.mapTaskOutputs.add(mapOutputFile);
+							this.mapTaskOutputs.add(executor.submit(new MapTask(tempBlockLocations.getBlockNumber(), tempMapTask.getMapName(), tempMapTask.getTaskId())));
 						}
 
 						System.out.println("Map Task Received");
 
-						runningMapTasks.put(tempMapTask.getTaskId(), tempMapTaskStatus);
+						runningMapTasks.put(tempMapTask.getTaskId(), MapTaskStatus.newBuilder().setJobId(tempMapTask.getJobId()).setTaskId(tempMapTask.getTaskId()));
 					}
 
 					for (ReduceTaskInfo tempReduceTask : heartbeatResponse.getReduceTasksList()) {
-						ReduceTaskStatus.Builder tempReduceTaskStatus = ReduceTaskStatus.newBuilder();
-						tempReduceTaskStatus.setJobId(tempReduceTask.getJobId());
-						tempReduceTaskStatus.setTaskId(tempReduceTask.getTaskId());
-
-						ReduceTask reduceTask = new ReduceTask(tempReduceTask.getMapOutputFilesList(), tempReduceTask.getReducerName(), tempReduceTask.getOutputFile(), tempReduceTask.getTaskId());
-
-						Future<String[]> finalOutput = executor.submit(reduceTask);
-						this.reduceTaskOutputs.add(finalOutput);
+						this.reduceTaskOutputs.add(executor.submit(new ReduceTask(tempReduceTask.getMapOutputFilesList(), tempReduceTask.getReducerName(), tempReduceTask.getOutputFile(), tempReduceTask.getTaskId())));
 
 						System.out.println("Reduce Task Received");
 
-						runningReduceTasks.put(tempReduceTask.getTaskId(), tempReduceTaskStatus);
+						runningReduceTasks.put(tempReduceTask.getTaskId(), ReduceTaskStatus.newBuilder().setJobId(tempReduceTask.getJobId()).setTaskId(tempReduceTask.getTaskId()));
 					}
 
 					Iterator<Future<String[]>> iterator;
@@ -187,11 +172,7 @@ public class TaskTracker extends UnicastRemoteObject {
 							} catch (InterruptedException | ExecutionException e) {
 								e.printStackTrace();
 							}
-							Integer taskID = Integer.parseInt(innerData[0]);
-							String mapOutputFile = innerData[1];
-
-							runningMapTasks.get(taskID).setTaskCompleted(true).setMapOutputFile(mapOutputFile);
-
+							runningMapTasks.get(Integer.parseInt(innerData[0])).setTaskCompleted(true).setMapOutputFile(innerData[1]);
 							iterator.remove();
 						} else {
 							continue;
@@ -202,14 +183,13 @@ public class TaskTracker extends UnicastRemoteObject {
 					while (iterator.hasNext()) {
 						Future<String[]> data = iterator.next();
 						if (data.isDone()) {
-							String[] innerData = new String[2];
+							String[] innerData = new String[1];
 							try {
 								innerData = data.get();
 							} catch (InterruptedException | ExecutionException e) {
 								e.printStackTrace();
 							}
-							Integer taskID = Integer.parseInt(innerData[0]);
-							runningReduceTasks.get(taskID).setTaskCompleted(true);
+							runningReduceTasks.get(Integer.parseInt(innerData[0])).setTaskCompleted(true);
 							iterator.remove();
 						} else {
 							continue;
@@ -228,7 +208,7 @@ public class TaskTracker extends UnicastRemoteObject {
 		System.out.println("Loaded TaskTracker...");
 	}
 
-	public TaskTracker() throws RemoteException {
+	public TaskTracker() {
 		super();
 	}
 

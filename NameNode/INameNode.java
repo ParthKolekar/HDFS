@@ -4,6 +4,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 public interface INameNode extends Remote {
+
 	byte[] assignBlock(byte[] serializedAssignBlockRequest) throws RemoteException;
 
 	byte[] blockReport(byte[] serializedBlockReportRequest) throws RemoteException;
@@ -17,4 +18,5 @@ public interface INameNode extends Remote {
 	byte[] list(byte[] serializedListFilesRequest) throws RemoteException;
 
 	byte[] openFile(byte[] serializedOpenFileRequest) throws RemoteException;
+
 }

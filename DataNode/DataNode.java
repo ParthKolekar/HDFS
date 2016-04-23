@@ -40,7 +40,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 
 	private static final long serialVersionUID = 1L;
 	private static final String configurationFile = "Resources/datanode.properties";
-	private static Integer serverID;
+	private static Integer dataNodeID;
 	private static String networkInterface;
 	private static Integer heartBeatTimeout;
 	private static Integer blockReportTimeout;
@@ -54,7 +54,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			System.exit(-1);
 		}
 
-		serverID = Integer.parseInt(args[0]);
+		dataNodeID = Integer.parseInt(args[0]);
 
 		Properties properties = new Properties();
 		InputStream inputStream = new FileInputStream(configurationFile);
@@ -78,7 +78,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 			public void run() {
 				while (true) {
 					HeartBeatRequest.Builder heartBeatRequest = HeartBeatRequest.newBuilder();
-					heartBeatRequest.setId(serverID);
+					heartBeatRequest.setId(dataNodeID);
 					INameNode nameNode = null;
 					try {
 						nameNode = (INameNode) LocateRegistry.getRegistry(nameNodeLocation).lookup("NameNode");
@@ -145,7 +145,7 @@ public class DataNode extends UnicastRemoteObject implements IDataNode {
 						System.err.println("Error Obtaining Network Information");
 						System.exit(-1);
 					}
-					BlockReportRequest.Builder blockReportRequest = BlockReportRequest.newBuilder().setId(serverID).setLocation(DataNodeLocation.newBuilder().setIP(inetAddress.getHostAddress()).setPort(Registry.REGISTRY_PORT));
+					BlockReportRequest.Builder blockReportRequest = BlockReportRequest.newBuilder().setId(dataNodeID).setLocation(DataNodeLocation.newBuilder().setIP(inetAddress.getHostAddress()).setPort(Registry.REGISTRY_PORT));
 					for (File tempFile : blockNumbers) {
 						blockReportRequest.addBlockNumbers(Integer.parseInt(tempFile.getName()));
 					}
