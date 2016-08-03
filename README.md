@@ -4,4 +4,4 @@ HDFS
 Build Badges
 ------------
 
-[![Build Status](https://travis-ci.com/ParthKolekar/HDFS.svg?token=Q1u29espyf7tbTqAPYrP&branch=master)](https://travis-ci.com/ParthKolekar/HDFS)
+[![Build Status](https://travis-ci.org/ParthKolekar/HDFS.svg?branch=master)](https://travis-ci.org/ParthKolekar/HDFS)
